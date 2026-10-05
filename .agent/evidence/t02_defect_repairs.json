@@ -1,0 +1,47 @@
+{
+  "task_id": "T02",
+  "recorded_at": "2026-10-05T14:11:15-07:00",
+  "status": "PASS",
+  "repairs_verified": [
+    {
+      "defect": "Non-finite values accepted",
+      "test": "tests/unit/test_regression_repairs.py::test_nan_and_infinity_rejected",
+      "status": "PASS",
+      "behavior": "Strict Decimal validation rejecting NaN, Infinity, and boolean-as-number"
+    },
+    {
+      "defect": "All-in budget exceeded",
+      "test": "tests/unit/test_regression_repairs.py::test_all_in_budget_strictly_enforced",
+      "status": "PASS",
+      "behavior": "spend + fee <= budget strictly enforced with quantization"
+    },
+    {
+      "defect": "Base-denominated sell fee and conservation",
+      "test": "tests/unit/test_regression_repairs.py::test_base_sell_fee_and_conservation",
+      "status": "PASS",
+      "behavior": "Base fees deducted prior to orderbook liquidation, base asset conservation verified"
+    },
+    {
+      "defect": "Tiny price move resets cooldown",
+      "test": "tests/unit/test_regression_repairs.py::test_tiny_price_move_does_not_reset_cooldown",
+      "status": "PASS",
+      "behavior": "Stable route key ignores price ticks; escalation requires relative (>=15%) and absolute (>=2 units) improvement"
+    },
+    {
+      "defect": "Wrong currency labels (silent dollar assumption)",
+      "test": "tests/unit/test_regression_repairs.py::test_currency_preservation_no_silent_dollar_equivalence",
+      "status": "PASS",
+      "behavior": "Exact ISO currency units preserved across instruments and routes"
+    },
+    {
+      "defect": "Hidden notification failures & quiet mode",
+      "test": "tests/unit/test_regression_repairs.py::test_notification_outbox_quiet_mode_and_visibility",
+      "status": "PASS",
+      "behavior": "Separate decision/enqueue/delivery timestamps, quiet mode explicit suppression"
+    }
+  ],
+  "requirements_impacted": {
+    "R01": "partially_proven_unit_level",
+    "R02": "partially_proven_unit_level"
+  }
+}

@@ -1,0 +1,9 @@
+([('base_library.zip',
+   '/Users/jeremyliu/Desktop/Projects/OhMyCrypto/build/ohmycrypto-sidecar/base_library.zip',
+   'DATA'),
+  ('libpython3.12.dylib',
+   '/Users/jeremyliu/.local/share/uv/python/cpython-3.12.15-macos-aarch64-none/lib/libpython3.12.dylib',
+   'BINARY'),
+  ('ohmycrypto-sidecar',
+   '/Users/jeremyliu/Desktop/Projects/OhMyCrypto/build/ohmycrypto-sidecar/ohmycrypto-sidecar',
+   'EXECUTABLE')],)

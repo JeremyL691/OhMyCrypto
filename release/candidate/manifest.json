@@ -1,0 +1,51 @@
+{
+  "release_id": "release_1.0.0_1791240138",
+  "version": "1.0.0",
+  "channel": "github",
+  "license": "GPL-3.0-only",
+  "ui_dials": {
+    "DESIGN_VARIANCE": 3,
+    "MOTION_INTENSITY": 2,
+    "VISUAL_DENSITY": 8
+  },
+  "target_os": "macOS 13+",
+  "architecture": "arm64",
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "commit": "9ba9f7fa8b27a94c960205581072e9a2519719c2",
+  "prepared_at_utc": "2026-10-05T22:42:18.941394+00:00",
+  "artifacts": [
+    {
+      "name": "OhMyCrypto-1.0.0-arm64.dmg",
+      "type": "installer_dmg",
+      "sha256": "6325dbb05fc5f8847d3a1f1e580ea77a6cefb6a338044aea1095af52cf3b3ced",
+      "size_bytes": 10096593
+    },
+    {
+      "name": "OhMyCrypto-1.0.0-source.tar.gz",
+      "type": "corresponding_source_archive",
+      "sha256": "6367b80337224109d71d924063eaec265ba2fee46750a844120405905217ef39",
+      "size_bytes": 57905693
+    },
+    {
+      "name": "LICENSE",
+      "type": "legal_notice",
+      "sha256": "bb0f28623560f81af73277581b9317b13acd4e46f264c0bde4942441dc67031d",
+      "size_bytes": 32473
+    },
+    {
+      "name": "NOTICES.md",
+      "type": "legal_notice",
+      "sha256": "476923456e425895712913b36e1a844fa7ebfca09aee511182be75172bbe3e04",
+      "size_bytes": 2381
+    },
+    {
+      "name": "README.md",
+      "type": "legal_notice",
+      "sha256": "ab6ceb33efa838f6b65c47d3f90a383d113eace4dd70aa5f47b65017ef1fba3f",
+      "size_bytes": 2348
+    }
+  ]
+}

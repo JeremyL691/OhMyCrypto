@@ -1,0 +1,42 @@
+{
+  "task_id": "T09",
+  "task_name": "Native Packaging, Desktop Integration & Verification Gates",
+  "timestamp_utc": "2026-10-05T21:39:30Z",
+  "requirements_proven": ["R09", "R11", "R12", "R13"],
+  "bundle_spec": {
+    "identifier": "org.ohmycrypto.desktop",
+    "name": "OhMyCrypto",
+    "version": "1.0.0",
+    "target_os": "macOS 13+",
+    "architecture": "arm64"
+  },
+  "verification_gates": {
+    "scripts_verify": "scripts/verify.py",
+    "offline_gate": {
+      "report": ".agent/evidence/offline/offline_report.json",
+      "status": "PASSED",
+      "pytest_passed": 36,
+      "vitest_passed": 7,
+      "typecheck": "PASSED"
+    },
+    "live_gate": {
+      "report": ".agent/evidence/live/live_report.json",
+      "status": "PASSED",
+      "coinbase_l2": "PASS",
+      "kraken_l2": "PASS"
+    },
+    "native_gate": {
+      "report": ".agent/evidence/native/native_report.json",
+      "status": "PASSED",
+      "bundle_structure": "PASS",
+      "codesign": "PASS"
+    }
+  },
+  "lifecycle_and_security": {
+    "single_instance_writer_lock": "VERIFIED (engine.lock with active PID verification)",
+    "owned_child_lifecycle": "VERIFIED (child terminates cleanly with code 0 on stdin EOF)",
+    "stale_lock_recovery": "VERIFIED (stale locks from dead PIDs cleared safely)",
+    "corruption_guard": "VERIFIED (DatabaseCorruptionError prevents silent database overwrite)"
+  },
+  "status": "PASSED"
+}

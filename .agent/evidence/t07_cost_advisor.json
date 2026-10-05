@@ -1,0 +1,34 @@
+{
+  "task_id": "T07",
+  "recorded_at": "2026-10-05T14:19:46-07:00",
+  "status": "PASS",
+  "capabilities_verified": [
+    {
+      "name": "multi_venue_cost_ranking",
+      "test": "tests/unit/test_cost_advisor.py::test_compare_single_amount_buy_and_sell",
+      "status": "PASS",
+      "behavior": "Ranks venues by maximum net acquired base for buy, maximum net proceeds for sell"
+    },
+    {
+      "name": "amount_grid_and_ineligible_reasons",
+      "test": "tests/unit/test_cost_advisor.py::test_amount_grid_preserves_ineligible_reasons",
+      "status": "PASS",
+      "behavior": "Grid amounts evaluated across depth, ineligible sizes retained with reason codes"
+    },
+    {
+      "name": "inventory_feasibility_isolation",
+      "test": "tests/unit/test_cost_advisor.py::test_inventory_feasibility_unknown_when_omitted",
+      "status": "PASS",
+      "behavior": "Unknown inventory does not block unconstrained cost comparison; calculates shortfalls when entered"
+    },
+    {
+      "name": "split_order_disjoint_depth_and_per_child_fees",
+      "test": "tests/unit/test_cost_advisor.py::test_split_order_disjoint_depth_and_fees",
+      "status": "PASS",
+      "behavior": "Consumes disjoint book depth across allocations, applies fixed per-order fees per child"
+    }
+  ],
+  "requirements_impacted": {
+    "R07": "proven_unit_level"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "task_id": "T05",
+  "recorded_at": "2026-10-05T14:17:23-07:00",
+  "status": "PASS",
+  "capabilities_verified": [
+    {
+      "name": "three_output_separation",
+      "test": "tests/replay/test_opportunity_and_replay.py::test_separation_of_verification_economics_and_eligibility",
+      "status": "PASS",
+      "behavior": "Input verification, economic result, and alert eligibility evaluated separately"
+    },
+    {
+      "name": "continuous_vs_sampled_persistence",
+      "test": "tests/replay/test_opportunity_and_replay.py::test_temporal_persistence_and_interruption",
+      "status": "PASS",
+      "behavior": "Candidate disappearing at 250ms and returning at 750ms is sampled persisted at 1s but continuous status is interrupted"
+    },
+    {
+      "name": "deterministic_replay_and_hash_identity",
+      "test": "tests/replay/test_opportunity_and_replay.py::test_deterministic_replay_and_hash_identity",
+      "status": "PASS",
+      "behavior": "Identical inputs and config yield bit-identical input and config SHA-256 hashes"
+    },
+    {
+      "name": "replay_bundle_export_and_fee_re_evaluation",
+      "test": "tests/replay/test_opportunity_and_replay.py::test_export_and_replay_cycle",
+      "status": "PASS",
+      "behavior": "Self-contained replay bundle export, exact match verification, fee override re-evaluation, sanitized share omissions"
+    }
+  ],
+  "requirements_impacted": {
+    "R05": "proven_unit_and_replay"
+  }
+}

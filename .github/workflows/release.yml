@@ -1,0 +1,243 @@
+name: Release
+
+# Builds, verifies, and publishes the OhMyCrypto macOS release.
+#
+# Produces, for both Apple Silicon and Intel:
+#   - OhMyCrypto-<version>-<arch>.dmg
+#   - The GPL-3.0 corresponding source archive (OhMyCrypto-<version>-source.tar.gz)
+#   - LICENSE and NOTICES.md
+#
+# scripts/release.py verify is a hard gate: if checksums or the source
+# correspondence check fail, no release is published.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.0)"
+        required: true
+        default: "1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple Silicon
+          - os: macos-14
+            target: aarch64-apple-darwin
+            arch: arm64
+          # Intel
+          - os: macos-13
+            target: x86_64-apple-darwin
+            arch: x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Set up Rust 1.90+
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.90"
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+
+      - name: Install Python dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e ".[dev]"
+          .venv/bin/python -m pip install websockets pyinstaller
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: desktop
+        run: npm run build
+
+      - name: Run verification gate (must pass before packaging)
+        run: .venv/bin/python scripts/verify.py --gate offline --output .agent/evidence/offline
+
+      - name: Build sidecar binary
+        run: .venv/bin/python -m PyInstaller ohmycrypto-sidecar.spec --noconfirm
+
+      - name: Build Tauri app for ${{ matrix.target }}
+        working-directory: desktop
+        run: npx tauri build --target ${{ matrix.target }}
+
+      - name: Code sign (ad hoc fallback when no Developer ID is configured)
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+        run: |
+          APP=$(find desktop/src-tauri/target/${{ matrix.target }}/release/bundle -maxdepth 2 -name "OhMyCrypto.app" | head -n 1)
+          if [ -z "$APP" ]; then
+            echo "No .app bundle found"; exit 1
+          fi
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            echo "Developer ID signing configured; using release signing path."
+          else
+            echo "No Developer ID secret configured; applying ad-hoc signature."
+            codesign --force --deep --sign - "$APP"
+          fi
+          codesign -dv --verbose=4 "$APP" 2>&1 | tail -n 5
+
+      - name: Package DMG and assemble release candidate
+        run: |
+          .venv/bin/python scripts/release.py prepare \
+            --version ${{ steps.version.outputs.version }} \
+            --arch ${{ matrix.arch }} \
+            --skip-source \
+            --output release/candidate
+          # The source archive is architecture-independent and is published
+          # once by the dedicated `source` job at the release commit.
+
+      - name: Verify release manifest (hard gate)
+        run: .venv/bin/python scripts/release.py verify --manifest release/candidate/manifest.json
+
+      - name: Upload arch artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.arch }}
+          path: |
+            release/candidate/OhMyCrypto-*${{ matrix.arch }}*.dmg
+            release/candidate/manifest.json
+            release/candidate/checksums.txt
+          if-no-files-found: error
+
+  source:
+    name: Corresponding source archive (GPL-3.0-only)
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build source archive from the release commit
+        run: |
+          .venv/bin/python -m pip --version || true
+          mkdir -p release/candidate
+          git archive --format=tar.gz \
+            --prefix=OhMyCrypto-${{ steps.version.outputs.version }}-source/ \
+            -o release/candidate/OhMyCrypto-${{ steps.version.outputs.version }}-source.tar.gz \
+            HEAD
+
+      - name: Copy license and notices
+        run: |
+          cp LICENSE release/candidate/LICENSE
+          cp NOTICES.md release/candidate/NOTICES.md
+          cp README.md release/candidate/README.md
+
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-source
+          path: |
+            release/candidate/OhMyCrypto-*-source.tar.gz
+            release/candidate/LICENSE
+            release/candidate/NOTICES.md
+            release/candidate/README.md
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: macos-14
+    needs: [build, source]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Assemble final release directory
+        run: |
+          mkdir -p release/final
+          find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "LICENSE" -o -name "NOTICES.md" -o -name "README.md" -o -name "checksums.txt" -o -name "manifest.json" \) -exec cp {} release/final/ \;
+          ls -la release/final
+
+      - name: Verify every artifact before publishing
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e .
+
+          # Verify each architecture's manifest against its checksums.
+          for m in $(find artifacts -name manifest.json); do
+            echo "Verifying $m"
+            .venv/bin/python scripts/release.py verify --manifest "$m"
+          done
+
+          # Both architectures must be present before publishing.
+          ls release/final/OhMyCrypto-*-arm64.dmg
+          ls release/final/OhMyCrypto-*-x86_64.dmg
+
+          # The GPL-3.0 corresponding source archive and notices are mandatory.
+          ls release/final/OhMyCrypto-*-source.tar.gz
+          ls release/final/LICENSE release/final/NOTICES.md
+
+          # Confirm exactly one source archive (no per-arch duplicates).
+          count=$(ls release/final/OhMyCrypto-*-source.tar.gz | wc -l | tr -d ' ')
+          [ "$count" -eq 1 ] || { echo "Expected exactly 1 source archive, found $count"; exit 1; }
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            release/final/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

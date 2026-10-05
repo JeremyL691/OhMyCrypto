@@ -1,0 +1,10 @@
+=== Starting Continuous Soak Profile: release-v1 ===
+Target duration: 900s (0.25 hours)
+Sampling symbol: BTC/USDT
+WebSocket stream: enabled
+Report output: .agent/evidence/soak24/soak_report.json
+[   5.7s / 900s] Heartbeat #1: RSS = 27.6 MB (Peak: 27.6 MB), latency samples = 2
+[   5.8s / 900s] Heartbeat #2: RSS = 117.7 MB (Peak: 117.7 MB), latency samples = 2
+[  10.8s / 900s] Heartbeat #3: RSS = 112.9 MB (Peak: 117.7 MB), latency samples = 2
+[  56.4s / 900s] Heartbeat #12: RSS = 99.2 MB (Peak: 117.7 MB), latency samples = 8
+[ 116.6s / 900s] Heartbeat #24: RSS = 79.8 MB (Peak: 117.7 MB), latency samples = 16

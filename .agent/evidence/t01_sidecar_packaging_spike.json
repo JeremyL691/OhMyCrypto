@@ -1,0 +1,28 @@
+{
+  "task_id": "T01",
+  "recorded_at": "2026-10-05T14:10:05-07:00",
+  "status": "PASS",
+  "clean_install": {
+    "package": "ohmycrypto==1.0.0",
+    "mode": "editable",
+    "python_version": "3.12.15",
+    "verified_import": "ohmycrypto"
+  },
+  "cli_entrypoints": [
+    "ohmycrypto status",
+    "ohmycrypto verify",
+    "ohmycrypto-sidecar"
+  ],
+  "packaging_spike": {
+    "packager": "pyinstaller 6.22.3",
+    "dist_target": "dist/ohmycrypto-sidecar/ohmycrypto-sidecar",
+    "arch": "arm64",
+    "round_trip_ping": "PASS",
+    "owned_child_eof_quit": "PASS (exit code 0)"
+  },
+  "tests_passed": [
+    "tests/unit/test_sidecar.py::test_sidecar_ping_and_clean_eof_quit",
+    "tests/unit/test_sidecar.py::test_sidecar_shutdown_action",
+    "tests/integration/test_bundled_sidecar.py::test_packaged_sidecar_round_trip_and_quit"
+  ]
+}

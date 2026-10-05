@@ -1,0 +1,132 @@
+{
+  "task_id": "T12",
+  "title": "Real-time WebSocket full-duplex market connectors",
+  "status": "proven",
+  "generated_at_utc": "2026-10-05T22:40:00Z",
+  "generation": 11,
+  "summary": "Both venue connectors were extended from REST-only (ccxt) to full-duplex WebSocket streaming with incremental orderbook maintenance, CRC32 checksum verification, sequence-gap REST resync, and bounded exponential-backoff reconnection.",
+  "implementation": {
+    "new_module": "src/ohmycrypto/adapters/stream.py",
+    "components": [
+      {
+        "name": "OrderbookMaintenance",
+        "purpose": "Incremental L2 book with bounded depth, zero-amount deletion, CRC32 checksum computation"
+      },
+      {
+        "name": "WebSocketStreamSession",
+        "purpose": "Full-duplex session: concurrent read pump with outbound send, capped exponential backoff reconnect with jitter, automatic resubscribe"
+      },
+      {
+        "name": "LatencySamples",
+        "purpose": "Bounded ring buffer producing p50/p95/p99 quantiles without unbounded growth"
+      },
+      {
+        "name": "ResyncRequest",
+        "purpose": "Auditable record of every automatic REST snapshot recovery"
+      }
+    ],
+    "kraken": {
+      "endpoint": "wss://ws.kraken.com/v2",
+      "channel": "book",
+      "methods": ["start_stream", "stop_stream", "stream_stats", "_handle_ws_message"]
+    },
+    "coinbase": {
+      "endpoint": "wss://advanced-trade-ws.coinbase.com",
+      "channel": "level2",
+      "methods": ["start_stream", "stop_stream", "stream_stats", "_handle_l2_update"]
+    }
+  },
+  "defects_found_and_repaired": [
+    {
+      "id": "WS-1",
+      "severity": "high",
+      "description": "Kraken v2 signals snapshot vs update at the FRAME level (msg['type']), not per data entry. The initial parser read entry['type'], so every live frame fell through and zero books were built despite 100+ frames received.",
+      "evidence": "Live trace showed recv=136 messages with books empty; frame inspection showed type at top level.",
+      "fix": "frame_type = msg.get('type') with per-entry fallback",
+      "regression_test": "test_kraken_parses_real_v2_frame_schema"
+    },
+    {
+      "id": "WS-2",
+      "severity": "high",
+      "description": "Kraken v2 emits levels as objects {'price':..,'qty':..}, not [price,qty] pairs. Every level was silently dropped.",
+      "evidence": "Captured live snapshot frame: {\"bids\":[{\"price\":85975.3,\"qty\":0.0205283}]}",
+      "fix": "_parse_side accepts dict (price/qty) and array forms",
+      "regression_test": "test_kraken_parses_real_v2_frame_schema"
+    },
+    {
+      "id": "WS-3",
+      "severity": "high",
+      "description": "Coinbase places product_id on the event object, not on update rows, so symbol resolution returned None and no book was published.",
+      "fix": "Read event['product_id'] with update-row fallback",
+      "regression_test": "test_coinbase_level2_snapshot_and_update"
+    },
+    {
+      "id": "WS-4",
+      "severity": "medium",
+      "description": "Live Kraken CRC32 checksums do not reproduce under the documented algorithm. Verified against multiple format variants and against ccxt's own reference implementation (ccxt/pro/kraken.py), which also fails and which disables the check by default with the comment 'the exchange checksum was not reliable'.",
+      "resolution": "Verification always runs and mismatches are always counted as diagnostics. Escalation to REST resync is opt-in via strict_checksum=True, defaulting to False to prevent a continuous resync storm against an unreliable venue value.",
+      "regression_tests": [
+        "test_kraken_checksum_mismatch_triggers_resync (strict mode)",
+        "test_kraken_checksum_mismatch_is_recorded_without_resync_by_default"
+      ]
+    },
+    {
+      "id": "WS-5",
+      "severity": "medium",
+      "description": "websockets resolved from an external Python 3.14 site-packages via a leaked PYTHONPATH rather than the project venv, masking a missing dependency.",
+      "fix": "Installed websockets into .venv and declared it in pyproject.toml dependencies; scripts/verify.py now strips inherited PYTHONPATH from gate subprocesses"
+    },
+    {
+      "id": "WS-6",
+      "severity": "medium",
+      "description": "A delta arriving before any snapshot left the book empty with no recovery path.",
+      "fix": "missing_snapshot resync triggers a REST snapshot"
+    }
+  ],
+  "tests": {
+    "file": "tests/integration/test_websocket_streams.py",
+    "count": 17,
+    "coverage": [
+      "incremental apply/delete/truncation",
+      "depth truncation bounds memory",
+      "CRC32 computation stability and mismatch detection",
+      "latency quantile correctness and bounded ring",
+      "full-duplex send and receive",
+      "reconnect after server-initiated abnormal close with resubscribe",
+      "Kraken snapshot then delta maintenance",
+      "Kraken sequence gap triggers REST resync",
+      "Kraken checksum mismatch (strict and default modes)",
+      "Kraken real v2 frame schema regression",
+      "Kraken update-without-snapshot resync",
+      "Coinbase level2 snapshot and update",
+      "concurrent multi-venue streams with reconnect churn",
+      "high-volume deltas keep memory bounded"
+    ],
+    "hermetic": true,
+    "note": "All tests run against a local scripted WebSocket server; none depend on venue availability or network reachability."
+  },
+  "live_verification": {
+    "kraken": {
+      "connected": true,
+      "messages_received": 119,
+      "book_levels": "10/10",
+      "best_bid": "85937.0",
+      "best_ask": "85937.1",
+      "crossed": false
+    },
+    "coinbase": {
+      "connected": true,
+      "messages_received": 11,
+      "book_levels": "10/10",
+      "best_bid": "85929.22",
+      "best_ask": "85936.76",
+      "crossed": false
+    }
+  },
+  "constraints": {
+    "public_data_only": true,
+    "no_credentials": true,
+    "no_order_entry": true,
+    "no_telemetry_egress": true
+  }
+}

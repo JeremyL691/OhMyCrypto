@@ -1,0 +1,4 @@
+#!/bin/sh
+DIR="$(cd "$(dirname "$0")" && pwd)"
+export OHMYCRYPTO_APP_ROOT="$(dirname "$DIR")"
+exec "$DIR/sidecar/ohmycrypto-sidecar" "$@"

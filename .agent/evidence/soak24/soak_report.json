@@ -1,0 +1,245 @@
+{
+  "soak_id": "soak_release-v1_1791237882",
+  "profile": "release-v1",
+  "commit": "9ba9f7fa8b27a94c960205581072e9a2519719c2",
+  "timestamp_start_utc": "2026-10-05T22:04:42.451332+00:00",
+  "timestamp_end_utc": "2026-10-05T22:19:43.748845+00:00",
+  "target_duration_sec": 900,
+  "actual_duration_sec": 901.29,
+  "completed_target": true,
+  "heartbeats_count": 179,
+  "memory_metrics": {
+    "initial_rss_mb": 27.23,
+    "max_rss_mb": 118.67,
+    "final_rss_mb": 82.66,
+    "limit_rss_mb": 512.0,
+    "within_limits": true
+  },
+  "latency_metrics_ms": {
+    "poll_interval_sec": 15,
+    "polls_attempted": 60,
+    "polls_failed": 0,
+    "combined": {
+      "p50": 2314.891,
+      "p95": 2715.725,
+      "p99": 2822.132,
+      "count": 120,
+      "min": 1653.847,
+      "max": 2910.94
+    },
+    "per_venue": {
+      "coinbase": {
+        "p50": 1874.68,
+        "p95": 2122.785,
+        "p99": 2132.283,
+        "count": 60,
+        "min": 1653.847,
+        "max": 2344.956
+      },
+      "kraken": {
+        "p50": 2471.312,
+        "p95": 2758.097,
+        "p99": 2822.132,
+        "count": 60,
+        "min": 2278.125,
+        "max": 2910.94
+      }
+    }
+  },
+  "websocket_stream": {
+    "enabled": true,
+    "kraken": {
+      "venue": "kraken",
+      "enabled": false,
+      "connected": false,
+      "reconnect_count": 0,
+      "messages_received": 0,
+      "messages_sent": 0,
+      "last_error": null,
+      "resync_count": 0,
+      "resync_reasons": [],
+      "sequence_gaps": 0,
+      "checksum_failures": 0,
+      "latency_ms": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "count": 0
+      },
+      "books": {
+        "BTC/USDT": {
+          "levels": [
+            0,
+            0
+          ],
+          "deltas": 0,
+          "snapshots": 0,
+          "sequence": null
+        }
+      }
+    },
+    "coinbase": {
+      "venue": "coinbase",
+      "enabled": false,
+      "connected": false,
+      "reconnect_count": 0,
+      "messages_received": 0,
+      "messages_sent": 0,
+      "last_error": null,
+      "resync_count": 0,
+      "resync_reasons": [],
+      "sequence_gaps": 0,
+      "checksum_failures": 0,
+      "latency_ms": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "count": 0
+      },
+      "books": {
+        "BTC/USDT": {
+          "levels": [
+            48,
+            47
+          ],
+          "deltas": 6204,
+          "snapshots": 1,
+          "sequence": null
+        }
+      }
+    },
+    "errors": []
+  },
+  "errors_count": 0,
+  "errors": [],
+  "sample_count": 179,
+  "sample_data": [
+    {
+      "tick": 1,
+      "elapsed_sec": 0.02,
+      "rss_mb": 27.42,
+      "timestamp_utc": "2026-10-05T22:04:42.467893+00:00"
+    },
+    {
+      "tick": 2,
+      "elapsed_sec": 5.49,
+      "rss_mb": 118.67,
+      "timestamp_utc": "2026-10-05T22:04:47.936650+00:00"
+    },
+    {
+      "tick": 3,
+      "elapsed_sec": 10.49,
+      "rss_mb": 116.39,
+      "timestamp_utc": "2026-10-05T22:04:52.944141+00:00"
+    },
+    {
+      "tick": 4,
+      "elapsed_sec": 15.49,
+      "rss_mb": 116.39,
+      "timestamp_utc": "2026-10-05T22:04:57.946151+00:00"
+    },
+    {
+      "tick": 5,
+      "elapsed_sec": 20.5,
+      "rss_mb": 99.84,
+      "timestamp_utc": "2026-10-05T22:05:02.950079+00:00"
+    },
+    {
+      "tick": 6,
+      "elapsed_sec": 25.5,
+      "rss_mb": 67.92,
+      "timestamp_utc": "2026-10-05T22:05:07.949109+00:00"
+    },
+    {
+      "tick": 7,
+      "elapsed_sec": 30.5,
+      "rss_mb": 30.98,
+      "timestamp_utc": "2026-10-05T22:05:12.952561+00:00"
+    },
+    {
+      "tick": 8,
+      "elapsed_sec": 35.5,
+      "rss_mb": 66.25,
+      "timestamp_utc": "2026-10-05T22:05:17.954268+00:00"
+    },
+    {
+      "tick": 9,
+      "elapsed_sec": 40.51,
+      "rss_mb": 63.97,
+      "timestamp_utc": "2026-10-05T22:05:22.956685+00:00"
+    },
+    {
+      "tick": 10,
+      "elapsed_sec": 45.51,
+      "rss_mb": 64.11,
+      "timestamp_utc": "2026-10-05T22:05:27.959045+00:00"
+    },
+    {
+      "tick": 11,
+      "elapsed_sec": 50.56,
+      "rss_mb": 102.58,
+      "timestamp_utc": "2026-10-05T22:05:33.016047+00:00"
+    },
+    {
+      "tick": 12,
+      "elapsed_sec": 55.57,
+      "rss_mb": 86.78,
+      "timestamp_utc": "2026-10-05T22:05:38.025091+00:00"
+    },
+    {
+      "tick": 13,
+      "elapsed_sec": 60.57,
+      "rss_mb": 86.47,
+      "timestamp_utc": "2026-10-05T22:05:43.025448+00:00"
+    },
+    {
+      "tick": 14,
+      "elapsed_sec": 65.58,
+      "rss_mb": 98.64,
+      "timestamp_utc": "2026-10-05T22:05:48.028695+00:00"
+    },
+    {
+      "tick": 15,
+      "elapsed_sec": 70.58,
+      "rss_mb": 37.7,
+      "timestamp_utc": "2026-10-05T22:05:53.031351+00:00"
+    },
+    {
+      "tick": 16,
+      "elapsed_sec": 75.58,
+      "rss_mb": 30.09,
+      "timestamp_utc": "2026-10-05T22:05:58.035750+00:00"
+    },
+    {
+      "tick": 17,
+      "elapsed_sec": 80.59,
+      "rss_mb": 110.28,
+      "timestamp_utc": "2026-10-05T22:06:03.043186+00:00"
+    },
+    {
+      "tick": 18,
+      "elapsed_sec": 85.59,
+      "rss_mb": 104.3,
+      "timestamp_utc": "2026-10-05T22:06:08.044221+00:00"
+    },
+    {
+      "tick": 19,
+      "elapsed_sec": 90.6,
+      "rss_mb": 24.44,
+      "timestamp_utc": "2026-10-05T22:06:13.049442+00:00"
+    },
+    {
+      "tick": 20,
+      "elapsed_sec": 95.71,
+      "rss_mb": 57.38,
+      "timestamp_utc": "2026-10-05T22:06:18.162191+00:00"
+    }
+  ],
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python": "3.12.15",
+    "os_release": "27.0"
+  },
+  "passed": true
+}

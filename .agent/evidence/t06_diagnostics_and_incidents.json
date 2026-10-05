@@ -1,0 +1,34 @@
+{
+  "task_id": "T06",
+  "recorded_at": "2026-10-05T14:18:34-07:00",
+  "status": "PASS",
+  "capabilities_verified": [
+    {
+      "name": "incident_grouping",
+      "test": "tests/unit/test_diagnostics.py::test_fault_detection_and_grouping",
+      "status": "PASS",
+      "behavior": "Faults within 60-second window group into single incident"
+    },
+    {
+      "name": "automated_recovery_and_closure",
+      "test": "tests/unit/test_diagnostics.py::test_incident_recovery_and_closure",
+      "status": "PASS",
+      "behavior": "Three consecutive clean observations close open incidents with recovery timestamp"
+    },
+    {
+      "name": "latency_distributions",
+      "test": "tests/unit/test_diagnostics.py::test_latency_distribution_percentiles",
+      "status": "PASS",
+      "behavior": "p50, p95, p99 calculated from observed sample windows"
+    },
+    {
+      "name": "incident_bundle_export_and_offline_reproduction",
+      "test": "tests/unit/test_diagnostics.py::test_incident_bundle_export_and_offline_reproduction",
+      "status": "PASS",
+      "behavior": "Self-contained incident bundle exports offline reproduction command and reproduces fault trigger"
+    }
+  ],
+  "requirements_impacted": {
+    "R06": "proven_unit_level"
+  }
+}

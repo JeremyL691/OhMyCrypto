@@ -1,0 +1,144 @@
+name: CI
+
+# Continuous integration for OhMyCrypto.
+#
+# Every push and pull request runs the full verification gate. The gate is the
+# single source of truth: scripts/verify.py --gate offline must pass, and it
+# enforces minimum test counts so a shrinking suite cannot silently pass.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify (Python ${{ matrix.python }})
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install Python dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e ".[dev]"
+          .venv/bin/python -m pip install websockets
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: desktop
+        run: npx playwright install chromium --with-deps
+
+      - name: Build desktop frontend
+        working-directory: desktop
+        run: npm run build
+
+      - name: Run offline verification gate
+        run: .venv/bin/python scripts/verify.py --gate offline --output .agent/evidence/offline
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-evidence
+          path: .agent/evidence/offline
+          if-no-files-found: warn
+
+  rust:
+    name: Rust checks
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust 1.90+
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.90"
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+
+      - name: Install macOS build dependencies
+        run: |
+          xcode-select --version || true
+
+      - name: Cargo check
+        working-directory: desktop/src-tauri
+        run: cargo check --all-targets
+
+  soak:
+    name: Soak (bounded runtime)
+    runs-on: macos-14
+    needs: verify
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e ".[dev]"
+          .venv/bin/python -m pip install websockets
+
+      - name: Run short soak (RSS ceiling 512 MiB)
+        run: .venv/bin/python scripts/soak.py --duration 300 --profile ci-fast --output .agent/evidence/soak_ci
+
+      - name: Assert memory bound
+        run: |
+          .venv/bin/python - <<'PY'
+          import json, sys
+          with open(".agent/evidence/soak_ci/soak_report.json") as f:
+              report = json.load(f)
+          peak = report["memory_metrics"]["max_rss_mb"]
+          limit = report["memory_metrics"]["limit_rss_mb"]
+          print(f"peak RSS {peak} MiB / limit {limit} MiB")
+          if peak > limit:
+              sys.exit(f"FAIL: soak exceeded RSS ceiling ({peak} > {limit})")
+          if not report["passed"]:
+              sys.exit("FAIL: soak report marked failed")
+          print("PASS: soak within bounds")
+          PY
+
+      - name: Upload soak evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak-evidence
+          path: .agent/evidence/soak_ci
+          if-no-files-found: warn

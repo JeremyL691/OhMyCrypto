@@ -1,0 +1,43 @@
+{
+  "task_id": "T03",
+  "recorded_at": "2026-10-05T14:13:16-07:00",
+  "status": "PASS",
+  "connectors_verified": [
+    {
+      "venue": "kraken",
+      "features": [
+        "public REST orderbook",
+        "market capabilities and precision metadata",
+        "CRC32 top-10 book checksum algorithm (v2)",
+        "sequence gap detection and degradation flag",
+        "delta update application and depth truncation"
+      ],
+      "tests": [
+        "tests/unit/test_adapters.py::test_kraken_num_formatting",
+        "tests/unit/test_adapters.py::test_calculate_kraken_checksum",
+        "tests/unit/test_adapters.py::test_kraken_delta_update_and_truncation",
+        "tests/unit/test_adapters.py::test_kraken_sequence_gap_detected",
+        "tests/unit/test_adapters.py::test_kraken_checksum_mismatch_detected"
+      ]
+    },
+    {
+      "venue": "coinbase",
+      "features": [
+        "public REST L2 orderbook",
+        "market capabilities and limits metadata",
+        "crossed-book rejection and Decimal normalization"
+      ],
+      "tests": [
+        "tests/unit/test_adapters.py::test_connector_health_degradation_on_consecutive_failures"
+      ]
+    }
+  ],
+  "live_probe_result": {
+    "symbol": "BTC/USDT",
+    "coinbase_status": "OK",
+    "kraken_status": "OK"
+  },
+  "requirements_impacted": {
+    "R03": "proven_unit_and_live_probe"
+  }
+}

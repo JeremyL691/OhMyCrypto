@@ -1,0 +1,58 @@
+{
+  "task_id": "T10",
+  "task_name": "Release Candidate Preparation & Distribution Validation",
+  "timestamp_utc": "2026-10-05T21:40:00Z",
+  "requirements_proven": ["R10", "R14"],
+  "release_id": "release_1.0.0_1791236335",
+  "manifest_path": "release/candidate/manifest.json",
+  "artifacts_verified": [
+    {
+      "name": "OhMyCrypto-1.0.0-arm64.dmg",
+      "type": "installer_dmg",
+      "sha256": "287f6eb8bd07569bea79eb2c5d38f562e001ab71948e1584fc3ee6cbb16a6428",
+      "size_bytes": 10031526,
+      "verified": true
+    },
+    {
+      "name": "OhMyCrypto-1.0.0-source.tar.gz",
+      "type": "corresponding_source_archive",
+      "sha256": "f94e986ad95f12ac6ac85682b402234976a382101cf412bc1a33735009b73aed",
+      "size_bytes": 57800387,
+      "verified": true
+    },
+    {
+      "name": "LICENSE",
+      "type": "legal_notice",
+      "sha256": "bb0f28623560f81af73277581b9317b13acd4e46f264c0bde4942441dc67031d",
+      "size_bytes": 32473,
+      "verified": true
+    },
+    {
+      "name": "NOTICES.md",
+      "type": "legal_notice",
+      "sha256": "476923456e425895712913b36e1a844fa7ebfca09aee511182be75172bbe3e04",
+      "size_bytes": 2381,
+      "verified": true
+    },
+    {
+      "name": "README.md",
+      "type": "legal_notice",
+      "sha256": "ab6ceb33efa838f6b65c47d3f90a383d113eace4dd70aa5f47b65017ef1fba3f",
+      "size_bytes": 2348,
+      "verified": true
+    }
+  ],
+  "gpl3_conformance": {
+    "license": "GPL-3.0-only",
+    "matching_source_delivered": true,
+    "notices_delivered": true,
+    "pyinstaller_bootloader_exception_documented": true
+  },
+  "distribution_readiness": {
+    "channel": "github",
+    "platform": "macOS 13+ (arm64, x86_64)",
+    "checksums_file": "release/candidate/checksums.txt",
+    "manifest_verification_exit_code": 0
+  },
+  "status": "PASSED"
+}

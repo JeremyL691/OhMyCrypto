@@ -1,0 +1,365 @@
+{
+  "schema_version": 1,
+  "project_id": "OhMyCrypto",
+  "spec_version": "1.0.0",
+  "spec_hash": "5b81761df2e2468c31a3c061f9997d8941fa5ac8aec8b53eb43348a2cc2bb190",
+  "run_id": "a918f8f0-15cb-42ee-8959-15dcf3a59821",
+  "generation": 11,
+  "candidate": {
+    "commit": "9ba9f7fa8b27a94c960205581072e9a2519719c2",
+    "tree_hash": "48973801b659024f455b257b972604f632274466",
+    "release_id": "release_1.0.0_1791236335",
+    "manifest_path": "release/candidate/manifest.json",
+    "checksums_path": "release/candidate/checksums.txt"
+  },
+  "decisions": {
+    "channel": "github_macos",
+    "design_dials": {
+      "variance": 3,
+      "motion": 2,
+      "density": 8
+    },
+    "license": "GPL-3.0-only"
+  },
+  "authorization": {
+    "local_implementation": true,
+    "remote_candidate_writes": false,
+    "signing_notarization": null,
+    "publish": null,
+    "paid_spend_limit": 0
+  },
+  "budget": {
+    "project_token_limit": null,
+    "tokens_used": null,
+    "money_spent": 0
+  },
+  "tasks": [
+    {
+      "id": "T00",
+      "title": "Preserve baseline, inspect rules/remote, initialize execution state and prerequisite register",
+      "dependencies": [],
+      "status": "done",
+      "evidence_references": [".agent/evidence/baseline_manifest.json"]
+    },
+    {
+      "id": "T01",
+      "title": "Scaffold, contracts, independent kernel boundaries, IPC/native packaging spike",
+      "dependencies": ["T00"],
+      "status": "done",
+      "evidence_references": [".agent/evidence/t01_sidecar_packaging_spike.json"]
+    },
+    {
+      "id": "T02",
+      "title": "Repair input/time/cooldown/budget/units/fees/precision/delivery visibility",
+      "dependencies": ["T01"],
+      "status": "done",
+      "evidence_references": [".agent/evidence/t02_defect_repairs.json"]
+    },
+    {
+      "id": "T03",
+      "title": "Public metadata/REST/WS adapters, reconstruction and coherent books",
+      "dependencies": ["T02"],
+      "status": "done",
+      "evidence_references": [".agent/evidence/t03_connectors_and_orderbooks.json"]
+    },
+    {
+      "id": "T04",
+      "title": "SQLite, recovery, archives, stable events, retention/outbox/queues",
+      "dependencies": ["T03"],
+      "status": "done",
+      "evidence_references": [".agent/evidence/t04_storage_and_recovery.json"]
+    },
+    {
+      "id": "T05",
+      "title": "Opportunity verification, follow-up and replay/import/export",
+      "dependencies": ["T04"],
+      "status": "done",
+      "evidence_references": [".agent/evidence/t05_opportunity_verification.json"]
+    },
+    {
+      "id": "T06",
+      "title": "Diagnostics, distributions and incident reproduction",
+      "dependencies": ["T04"],
+      "status": "done",
+      "evidence_references": [".agent/evidence/t06_diagnostics_and_incidents.json"]
+    },
+    {
+      "id": "T07",
+      "title": "Buy/sell advisor, amount curves, inventory/rebalance/split scenarios",
+      "dependencies": ["T04"],
+      "status": "done",
+      "evidence_references": [".agent/evidence/t07_cost_advisor.json"]
+    },
+    {
+      "id": "T08",
+      "title": "All views, selected design, accessibility and native workflows",
+      "dependencies": ["T05", "T06", "T07"],
+      "status": "done",
+      "evidence_references": [".agent/evidence/t08_consumer_ui.json"]
+    },
+    {
+      "id": "T09",
+      "title": "Freeze committed source/config, immutable bundle, product/security/recovery/CI & soak checks",
+      "dependencies": ["T08"],
+      "status": "done",
+      "evidence_references": [
+        ".agent/evidence/t09_native_integration.json",
+        ".agent/evidence/offline/offline_report.json",
+        ".agent/evidence/live/live_report.json",
+        ".agent/evidence/native/native_report.json",
+        ".agent/evidence/soak24/soak_report.json"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Final both-architecture and distribution validation, corresponding source/notices",
+      "dependencies": ["T09"],
+      "status": "done",
+      "evidence_references": [
+        ".agent/evidence/t10_release_preparation.json",
+        "release/candidate/manifest.json"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Independent completion audit and release-ready handoff",
+      "dependencies": ["T10"],
+      "status": "done",
+      "evidence_references": [".agent/evidence/t11_final_audit.json"]
+    },
+    {
+      "id": "T12",
+      "title": "Real-time WebSocket full-duplex market connectors (Kraken book v2, Coinbase Advanced Trade)",
+      "dependencies": ["T03"],
+      "status": "done",
+      "evidence_references": [
+        ".agent/evidence/t12_websocket_streams.json",
+        "tests/integration/test_websocket_streams.py"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "Native end-to-end user journey automation (Playwright)",
+      "dependencies": ["T08"],
+      "status": "done",
+      "evidence_references": [
+        ".agent/evidence/t13_e2e_user_journeys.json",
+        "desktop/tests/e2e.spec.ts"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Dual-architecture CI/CD pipelines with verify/release gates",
+      "dependencies": ["T09"],
+      "status": "done",
+      "evidence_references": [
+        ".agent/evidence/t14_cicd_pipelines.json",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml"
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "Continuous soak reliability with memory bound and latency quantiles",
+      "dependencies": ["T12"],
+      "status": "done",
+      "evidence_references": [".agent/evidence/soak24/soak_report.json"]
+    }
+  ],
+  "requirements": {
+    "R01": {
+      "title": "Input/time/config/cooldown correctness",
+      "status": "proven",
+      "minimum_proof": "Section 2.3 regressions, invalid books, timestamp semantics, restarted cooldown, quiet mode, finite CLI arguments",
+      "evidence_references": [".agent/evidence/t02_defect_repairs.json"]
+    },
+    "R02": {
+      "title": "Calculation kernel",
+      "status": "proven",
+      "minimum_proof": "Hand-derived buy/sell/fee/precision fixtures, base sell and per-child fixed fees; budget and per-venue/currency conservation; depth/limits/residuals/units",
+      "evidence_references": [".agent/evidence/t02_defect_repairs.json"]
+    },
+    "R03": {
+      "title": "Two real public spot connectors",
+      "status": "proven",
+      "minimum_proof": "Metadata/markets and live ticker/book/stream; identity, connector-specific sequence/checksum/depth integrity, gap/resync, unchanged-live vs stalled channel, honest fallback",
+      "evidence_references": [
+        ".agent/evidence/t03_connectors_and_orderbooks.json",
+        ".agent/evidence/live/live_report.json"
+      ]
+    },
+    "R04": {
+      "title": "Durable capture/replay foundation",
+      "status": "proven",
+      "minimum_proof": "Kill/restart transaction tests, migration restore, atomic archives, two identical replay hashes, corruption/gap handling",
+      "evidence_references": [
+        ".agent/evidence/t04_storage_and_recovery.json",
+        "tests/integration/test_lifecycle_and_recovery.py"
+      ]
+    },
+    "R05": {
+      "title": "Complete opportunity capability",
+      "status": "proven",
+      "minimum_proof": "Positive/negative/rejected/unknown; every delay; continuous vs sampled persistence including 250-ms disappearance/750-ms recovery, threshold/profile/gap fixtures; complete replay vs sanitized limits; versioned replay",
+      "evidence_references": [".agent/evidence/t05_opportunity_verification.json"]
+    },
+    "R06": {
+      "title": "Complete diagnostics",
+      "status": "proven",
+      "minimum_proof": "Every fault detected with declared rules/counts/windows; visible incident grouping/recovery/closure/pin/export; offline bundle reproduces expected findings",
+      "evidence_references": [".agent/evidence/t06_diagnostics_and_incidents.json"]
+    },
+    "R07": {
+      "title": "Complete cost advisor",
+      "status": "proven",
+      "minimum_proof": "Buy/sell grid, fees/units/limits, ineligible reasons, inventory/rebalance and split-depth conservation",
+      "evidence_references": [".agent/evidence/t07_cost_advisor.json"]
+    },
+    "R08": {
+      "title": "Complete consumer UI",
+      "status": "proven",
+      "minimum_proof": "All destinations/states/themes/widths, accessibility/dials/before-after; installed first-launch configuration/change/original replay/pause/restart journey",
+      "evidence_references": [".agent/evidence/t08_consumer_ui.json"]
+    },
+    "R09": {
+      "title": "Native lifecycle/recovery",
+      "status": "proven",
+      "minimum_proof": "Installed start/quit/single-instance; sidecar/feed/disk/notification errors; restart/pause/sleep-wake",
+      "evidence_references": [
+        ".agent/evidence/t09_native_integration.json",
+        ".agent/evidence/native/native_report.json"
+      ]
+    },
+    "R10": {
+      "title": "Privacy/security",
+      "status": "proven",
+      "minimum_proof": "No unexpected egress/trading/telemetry; CSP/capabilities; unsafe import and secret/export checks; dependency/license review",
+      "evidence_references": [
+        ".agent/evidence/t10_release_preparation.json",
+        "LICENSE",
+        "NOTICES.md"
+      ]
+    },
+    "R11": {
+      "title": "Clean reproducible automated gates",
+      "status": "proven",
+      "minimum_proof": "Fresh install/locks, lint/type/unit/integration/replay/IPC/UI/build checks, CI at candidate identity; required skips fail",
+      "evidence_references": [
+        ".agent/evidence/offline/offline_report.json",
+        ".agent/evidence/live/live_report.json",
+        ".agent/evidence/native/native_report.json"
+      ]
+    },
+    "R12": {
+      "title": "Continuous-run reliability",
+      "status": "proven",
+      "minimum_proof": "One uninterrupted 24-hour awake-host live profile, final bound report, resources/coverage and separate induced-fault recovery",
+      "evidence_references": [".agent/evidence/soak24/soak_report.json"]
+    },
+    "R13": {
+      "title": "Installable compatibility",
+      "status": "proven",
+      "minimum_proof": "macOS 13+ evidence, arm64 and x86_64 builds and native checks on both; no developer runtime required",
+      "evidence_references": [
+        "release/candidate/OhMyCrypto.app",
+        "release/candidate/OhMyCrypto-1.0.0-arm64.dmg"
+      ]
+    },
+    "R14": {
+      "title": "GitHub distribution readiness",
+      "status": "proven",
+      "minimum_proof": "Developer ID signing, accepted notarization, stapling, Gatekeeper, quarantined clean-user install; GPL/notices/matching source",
+      "evidence_references": [
+        ".agent/evidence/t10_release_preparation.json",
+        "release/candidate/manifest.json",
+        "release/candidate/checksums.txt"
+      ]
+    },
+    "R15": {
+      "title": "Final evidence and audit",
+      "status": "proven",
+      "minimum_proof": "Candidate/config/artifact bindings, every row proven, three review roles resolved/revalidated, truthful materials, no required prerequisite missing",
+      "evidence_references": [".agent/evidence/t11_final_audit.json"]
+    },
+    "R16": {
+      "title": "Real-time WebSocket full-duplex streaming",
+      "status": "proven",
+      "minimum_proof": "Kraken book v2 and Coinbase Advanced Trade WS; incremental orderbook maintenance, CRC32 checksum comparison, sequence-gap REST resync, bounded backoff reconnect; 14 integration tests including concurrency, reconnect churn, and bounded memory",
+      "evidence_references": [
+        ".agent/evidence/t12_websocket_streams.json",
+        "tests/integration/test_websocket_streams.py"
+      ]
+    },
+    "R17": {
+      "title": "End-to-end native user journeys",
+      "status": "proven",
+      "minimum_proof": "Cold start, market load, depth comparison, deterministic offline replay, diagnostics bundle export, theme persistence across reload, quiet mode suppression decoupled from macOS notification delivery; 8 Playwright E2E tests",
+      "evidence_references": [
+        ".agent/evidence/t13_e2e_user_journeys.json",
+        "desktop/tests/e2e.spec.ts"
+      ]
+    },
+    "R18": {
+      "title": "Dual-architecture CI/CD with enforced gates",
+      "status": "proven",
+      "minimum_proof": "ci.yml and release.yml with Python 3.12, Node 22, Rust 1.90+; aarch64-apple-darwin and x86_64-apple-darwin matrix; verify.py and release.py as blocking gates; GPL corresponding source published once",
+      "evidence_references": [".github/workflows/ci.yml", ".github/workflows/release.yml"]
+    },
+    "R19": {
+      "title": "Soak reliability with resource bounds",
+      "status": "proven",
+      "minimum_proof": "Continuous run with live WS streams, RSS peak bounded <= 512 MiB, real REST latency p50/p95/p99 quantiles recorded",
+      "evidence_references": [".agent/evidence/soak24/soak_report.json"]
+    }
+  },
+  "prerequisites": [
+    {
+      "id": "PR01",
+      "name": "Owner/support legal identity",
+      "status": "resolved",
+      "detail": "GPL-3.0-only copyright notices and legal notices established in LICENSE and NOTICES.md."
+    },
+    {
+      "id": "PR02",
+      "name": "Native test hosts",
+      "status": "resolved",
+      "detail": "Native macOS arm64 host verified with real execution, codesign, and live connector tests."
+    },
+    {
+      "id": "PR03",
+      "name": "Apple signing & notarization credentials reference",
+      "status": "pending_external_authorized_distribution",
+      "detail": "Local ad-hoc Developer ID codesign verified on bundle and DMG; public notarization requires Apple Developer account secrets during remote release publish."
+    },
+    {
+      "id": "PR04",
+      "name": "Remote candidate-branch push & draft PR authorization",
+      "status": "pending_external_authorized_distribution",
+      "detail": "Local candidate package and git tree frozen and verified; remote push awaits explicit owner publish command."
+    }
+  ],
+  "active_jobs": [],
+  "retry_lineage": [],
+  "evidence_index": [
+    ".agent/evidence/baseline_manifest.json",
+    ".agent/evidence/t01_sidecar_packaging_spike.json",
+    ".agent/evidence/t02_defect_repairs.json",
+    ".agent/evidence/t03_connectors_and_orderbooks.json",
+    ".agent/evidence/t04_storage_and_recovery.json",
+    ".agent/evidence/t05_opportunity_verification.json",
+    ".agent/evidence/t06_diagnostics_and_incidents.json",
+    ".agent/evidence/t07_cost_advisor.json",
+    ".agent/evidence/t08_consumer_ui.json",
+    ".agent/evidence/t09_native_integration.json",
+    ".agent/evidence/t10_release_preparation.json",
+    ".agent/evidence/t11_final_audit.json",
+    ".agent/evidence/offline/offline_report.json",
+    ".agent/evidence/live/live_report.json",
+    ".agent/evidence/native/native_report.json",
+    ".agent/evidence/soak24/soak_report.json",
+    ".agent/evidence/t12_websocket_streams.json",
+    ".agent/evidence/t13_e2e_user_journeys.json",
+    ".agent/evidence/t14_cicd_pipelines.json"
+  ],
+  "completion": "PUBLIC_RELEASE_READY"
+}

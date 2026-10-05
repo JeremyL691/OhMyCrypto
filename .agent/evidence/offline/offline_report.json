@@ -1,0 +1,51 @@
+{
+  "verification_id": "verify_offline_1791240003",
+  "gate": "offline",
+  "commit": "9ba9f7fa8b27a94c960205581072e9a2519719c2",
+  "timestamp_start_utc": "2026-10-05T22:40:03.684606+00:00",
+  "timestamp_end_utc": "2026-10-05T22:40:32.520263+00:00",
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python": "3.12.15"
+  },
+  "passed": true,
+  "checks": [
+    {
+      "check": "pytest_suite",
+      "command": "/Users/jeremyliu/Desktop/Projects/OhMyCrypto/.venv/bin/python -m pytest tests/unit tests/replay tests/integration -q",
+      "passed": true,
+      "exit_code": 0,
+      "summary": "53 passed in 16.58s",
+      "tests_collected": 53,
+      "min_required": 53
+    },
+    {
+      "check": "desktop_typecheck",
+      "command": "npm run typecheck",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "check": "desktop_vitest",
+      "command": "npm run test",
+      "passed": true,
+      "exit_code": 0,
+      "tests_collected": 7,
+      "min_required": 7
+    },
+    {
+      "check": "desktop_e2e",
+      "command": "npx playwright test --reporter=list",
+      "passed": true,
+      "exit_code": 0,
+      "tests_collected": 8,
+      "min_required": 8
+    },
+    {
+      "check": "kernel_all_in_budget_invariant",
+      "passed": true,
+      "details": "spent=997.50560000, fee=2.493764000000, budget=1000"
+    }
+  ]
+}

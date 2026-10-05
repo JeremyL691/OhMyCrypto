@@ -1,0 +1,3 @@
+[console_scripts]
+ohmycrypto = ohmycrypto.interfaces.cli:main
+ohmycrypto-sidecar = ohmycrypto.interfaces.sidecar:main

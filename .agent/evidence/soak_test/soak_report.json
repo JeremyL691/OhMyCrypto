@@ -1,0 +1,36 @@
+{
+  "soak_id": "soak_test-fast_1791236021",
+  "profile": "test-fast",
+  "commit": "9ba9f7fa8b27a94c960205581072e9a2519719c2",
+  "timestamp_start_utc": "2026-10-05T21:33:41.526597+00:00",
+  "timestamp_end_utc": "2026-10-05T21:33:46.539967+00:00",
+  "target_duration_sec": 5,
+  "actual_duration_sec": 5.01,
+  "completed_target": true,
+  "heartbeats_count": 1,
+  "memory_metrics": {
+    "initial_rss_mb": 20.92,
+    "max_rss_mb": 20.94,
+    "final_rss_mb": 16.44,
+    "limit_rss_mb": 512.0,
+    "within_limits": true
+  },
+  "errors_count": 0,
+  "errors": [],
+  "sample_count": 1,
+  "sample_data": [
+    {
+      "tick": 1,
+      "elapsed_sec": 0.01,
+      "rss_mb": 20.94,
+      "timestamp_utc": "2026-10-05T21:33:41.535746+00:00"
+    }
+  ],
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python": "3.12.15",
+    "os_release": "27.0"
+  },
+  "passed": true
+}

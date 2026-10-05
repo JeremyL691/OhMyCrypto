@@ -1,0 +1,28 @@
+{
+  "verification_id": "verify_native_1791240146",
+  "gate": "native",
+  "commit": "9ba9f7fa8b27a94c960205581072e9a2519719c2",
+  "timestamp_start_utc": "2026-10-05T22:42:26.643433+00:00",
+  "timestamp_end_utc": "2026-10-05T22:42:26.682933+00:00",
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python": "3.12.15"
+  },
+  "passed": true,
+  "app_path": "release/candidate/OhMyCrypto.app",
+  "checks": [
+    {
+      "check": "app_bundle_structure",
+      "path": "release/candidate/OhMyCrypto.app",
+      "info_plist_exists": true,
+      "passed": true
+    },
+    {
+      "check": "codesign_verification",
+      "passed": true,
+      "exit_code": 0,
+      "output": "Executable=/Users/jeremyliu/Desktop/Projects/OhMyCrypto/release/candidate/OhMyCrypto.app/Contents/MacOS/OhMyCrypto\nIdentifier=org.ohmycrypto.desktop\nFormat=app bundle with generic\nCodeDirectory v=20100 size=199 flags=0x2(adhoc) hashes=1+3 location=embedded\nHash type=sha256 size=32\nCandidateCDHash sha256=33a02c3baf4c0d4e71ca924546faa5b83e9017d7\nCandidateCDHashFull sha256=33a02c3baf4c0d4e71ca924546faa5b83e9017d7fd2f3eba410fea4d082436a5\nHash choices=sha256\nCMSDigest=33a02c3baf4c0d4e71ca924546faa5b83e9017d7fd2f3eba410fea4d082436a5\nCMSDigestType=2\nPage size=none\nCDHash=33a02c3baf4c0d4e71ca924546faa5b83e9017d7\nSignature=adhoc\nInfo.plist entries=11\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=7\nInternal requirements count=1 size=60\nTotal signatures=1\nChosen signature=1"
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "task_id": "T11",
+  "task_name": "Independent Completion Audit & Release-Ready Handoff",
+  "timestamp_utc": "2026-10-05T21:40:30Z",
+  "release_state": "PUBLIC_RELEASE_READY",
+  "candidate_commit": "9ba9f7fa8b27a94c960205581072e9a2519719c2",
+  "version": "1.0.0",
+  "channel": "github",
+  "license": "GPL-3.0-only",
+  "ui_dials": {
+    "DESIGN_VARIANCE": 3,
+    "MOTION_INTENSITY": 2,
+    "VISUAL_DENSITY": 8
+  },
+  "acceptance_matrix": {
+    "R01": {
+      "name": "Input, time, config, and cooldown correctness",
+      "status": "PROVEN",
+      "evidence": ".agent/evidence/t02_defect_repairs.json",
+      "tests": "tests/unit/test_regression_repairs.py"
+    },
+    "R02": {
+      "name": "Calculation kernel and conservation invariants",
+      "status": "PROVEN",
+      "evidence": ".agent/evidence/t02_defect_repairs.json",
+      "tests": "tests/unit/test_regression_repairs.py"
+    },
+    "R03": {
+      "name": "Two real public spot connectors (Coinbase & Kraken)",
+      "status": "PROVEN",
+      "evidence": [".agent/evidence/t03_connectors_and_orderbooks.json", ".agent/evidence/live/live_report.json"],
+      "tests": "tests/unit/test_adapters.py"
+    },
+    "R04": {
+      "name": "Durable capture/replay foundation (SQLite WAL, atomic archives)",
+      "status": "PROVEN",
+      "evidence": ".agent/evidence/t04_storage_and_recovery.json",
+      "tests": "tests/unit/test_storage.py"
+    },
+    "R05": {
+      "name": "Opportunity verification, follow-ups and deterministic replay",
+      "status": "PROVEN",
+      "evidence": ".agent/evidence/t05_opportunity_verification.json",
+      "tests": "tests/replay/test_opportunity_and_replay.py"
+    },
+    "R06": {
+      "name": "Diagnostics, incident registry, and offline reproduction bundle",
+      "status": "PROVEN",
+      "evidence": ".agent/evidence/t06_diagnostics_and_incidents.json",
+      "tests": "tests/unit/test_diagnostics.py"
+    },
+    "R07": {
+      "name": "Personal execution cost advisor & split scenarios",
+      "status": "PROVEN",
+      "evidence": ".agent/evidence/t07_cost_advisor.json",
+      "tests": "tests/unit/test_cost_advisor.py"
+    },
+    "R08": {
+      "name": "Complete consumer UI (5 views, accessibility, dials 3/2/8)",
+      "status": "PROVEN",
+      "evidence": ".agent/evidence/t08_consumer_ui.json",
+      "tests": "desktop/tests/ui.test.tsx"
+    },
+    "R09": {
+      "name": "Native lifecycle and recovery (Single-instance, parent-owned child)",
+      "status": "PROVEN",
+      "evidence": [".agent/evidence/t09_native_integration.json", ".agent/evidence/native/native_report.json"],
+      "tests": "tests/integration/test_lifecycle_and_recovery.py"
+    },
+    "R10": {
+      "name": "Privacy, security, and GPL-3.0 licensing compliance",
+      "status": "PROVEN",
+      "evidence": ".agent/evidence/t10_release_preparation.json",
+      "files": ["LICENSE", "NOTICES.md"]
+    },
+    "R11": {
+      "name": "Clean reproducible automated gates (verify.py, release.py)",
+      "status": "PROVEN",
+      "evidence": [".agent/evidence/offline/offline_report.json", ".agent/evidence/live/live_report.json"],
+      "scripts": ["scripts/verify.py", "scripts/release.py"]
+    },
+    "R12": {
+      "name": "Continuous-run reliability and resource bounds",
+      "status": "PROVEN",
+      "evidence": ".agent/evidence/soak24/soak_report.json",
+      "scripts": "scripts/soak.py"
+    },
+    "R13": {
+      "name": "Installable compatibility (macOS 13+ bundle, no dev runtime)",
+      "status": "PROVEN",
+      "evidence": "release/candidate/OhMyCrypto.app",
+      "format": "macOS App Bundle + DMG"
+    },
+    "R14": {
+      "name": "GitHub distribution readiness (DMG, source tarball, notices, manifest)",
+      "status": "PROVEN",
+      "evidence": "release/candidate/manifest.json",
+      "checksums": "release/candidate/checksums.txt"
+    },
+    "R15": {
+      "name": "Final audit and binding",
+      "status": "PROVEN",
+      "evidence": ".agent/evidence/t11_final_audit.json"
+    }
+  },
+  "overall_audit_verdict": "PASSED - ZERO DEFECTS - ALL 15 REQUIREMENTS PROVEN"
+}
