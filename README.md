@@ -1,53 +1,40 @@
-# OhMyCrypto 🚀
+# OhMyCrypto
 
-**The Sonic Arbitrage Monitor for macOS**
+OhMyCrypto is currently a Python command-line prototype for comparing cryptocurrency prices across exchanges and estimating opportunities from order book depth. It can issue macOS sound and voice notifications. It does not place orders.
 
-Start your day with the sound of money (literally). OhMyCrypto connects to major exchanges, scans for price discrepancies, and **sings to you** when it finds an arbitrage opportunity.
+The complete refactor will deliver one local-first macOS application with three capabilities:
 
-> *"Why stare at charts when your Mac can scream at you?"*
+1. Opportunity verification and replay: inspect costs, data quality, and how long quoted conditions persist.
+2. Market data quality diagnostics: measure collection problems and preserve reproducible incident evidence.
+3. Personal execution cost comparison: compare estimated purchase or sale costs for a selected amount and venue set.
 
-## 🤔 What is this?
-I built this because I was tired of missing arbitrage windows while doing my homework.
+These capabilities are planned. They are not available in the current prototype. The selected distribution channel is GitHub Releases.
 
-It's a Python-based, async-powered market scanner that:
-1.  **Watches multiple exchanges** (Binance, OKX, etc.) simultaneously.
-2.  **Calculates the spread** in real-time (factoring in fees, because fees hurt).
-3.  **Uses macOS native Text-to-Speech** to vocally alert you when a profitable trade exists.
+## Current status
 
-## ⚡ Features
-* **Blazing Fast**: Uses `asyncio` and `ccxt.async_support` to poll multiple exchanges in parallel.
-* **Smart Math**: Doesn't just look at price; checks the Order Book depth (Bid/Ask) to ensure the trade is real.
-* **Sonic Alerts**:
-    * *Small Profit*: Polite notification.
-    * *Huge Profit*: Excited singing (yes, it actually sings).
+The October 5, 2026 audit found working public ticker and order book access, nine passing unit tests, and unresolved freshness, alert deduplication, and non-finite-number handling defects. The upgraded source and tests were local changes outside the initial Git commit. Short live checks are not evidence of long-term reliability or actual trading profitability.
 
-## 🛠 Installation
+The current dependency pins require Python 3.11 or newer. Python 3.12 is the verified development baseline. Native sound and speech require macOS.
 
-You need Python 3.9+ and a Mac (for the voice features).
+## Run the existing prototype
 
-1.  **Clone the repo**
-    ```bash
-    git clone [https://github.com/JeremyL691/OhMyCrypto.git](https://github.com/JeremyL691/OhMyCrypto.git)
-    cd OhMyCrypto
-    ```
+From the repository root:
 
-2.  **Set up the environment**
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    ```
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python src/main.py --quiet
+```
 
-3.  **Run it**
-    ```bash
-    cd src
-    python main.py
-    ```
+The default pair is `BTC/USDT` on Coinbase and Kraken. `--quiet` disables sound and speech. Run `.venv/bin/python src/main.py --help` for the existing options. Freshness and cooldown have known limitations described in the execution guide.
 
-## 🎮 Usage
+```sh
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest discover -s tests -v
+```
 
-By default, it watches **BTC/USDT** on Binance and OKX. Want to watch something else?
+## Refactor handoff
 
-```bash
-# Watch Ethereum with a $2000 trade simulation
-python main.py --symbol ETH/USDT --trade-size 2000
+- [Project execution guide](PROJECT_EXECUTION_GUIDE.md): authoritative product scope, architecture, task order, acceptance requirements, autonomous execution protocol, and release gates.
+- [Agent prompt](AGENT_PROMPT.md): copyable instruction for the agent that will implement the refactor.
+
+The guide defines the intended release, not a claim that implementation or release validation has completed. No other roadmap or completion checklist should compete with it.

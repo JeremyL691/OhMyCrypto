@@ -1,59 +1,52 @@
 import subprocess
-import os
 
-def play_system_sound(sound_name="Glass"):
-    # Mac has built-in sounds at /System/Library/Sounds/
-    # Options: Glass, Bottle, Funk, Hero, Ping, Submarine
+from config import (
+    ALERT_RATE_BY_SEVERITY,
+    ALERT_SOUND_BY_SEVERITY,
+    ALERT_VOICE_BY_SEVERITY,
+)
+
+
+def play_system_sound(sound_name):
     try:
-        subprocess.run(["afplay", f"/System/Library/Sounds/{sound_name}.aiff"], check=False)
+        subprocess.run(
+            ["afplay", f"/System/Library/Sounds/{sound_name}.aiff"],
+            check=False,
+        )
     except Exception:
         pass
 
-def speak(text, emotion="neutral"):
-    # Mac built-in Text-to-Speech
-    # Voice options: 
-    #   'Alex' (Neutral, Standard)
-    #   'Fred' (Robot, Sci-Fi)
-    #   'Samantha' (Siri-like, Clear)
-    #   'Cellos' (Singing voice, very funny)
-    
-    voice = "Samantha"  # Default
-    rate = "175"        # Speed
-    
-    if emotion == "excited":
-        voice = "Good News" # Or 'Cellos' for fun
-        rate = "200"
-    elif emotion == "bored":
-        voice = "Alex"
-        rate = "150"
-        
-    cmd = ["say", "-v", voice, "-r", rate, text]
-    
+
+def speak(text, voice, rate):
     try:
-        subprocess.run(cmd, check=False)
+        subprocess.run(["say", "-v", voice, "-r", str(rate), text], check=False)
     except Exception:
         pass
 
-def notify_opportunity(profit, spread_pct):
-    # Logic to decide "Emotion" based on profit size
-    
-    # Thresholds
-    BIG_PROFIT = 5.0  # $5 profit
-    HUGE_PROFIT = 20.0 # $20 profit
-    
-    if profit > HUGE_PROFIT:
-        # Super Excited
-        play_system_sound("Ping")
-        msg = f"Jackpot! Huge opportunity. {profit:.2f} dollars."
-        speak(msg, emotion="excited")
-        
-    elif profit > BIG_PROFIT:
-        # Normal Excited
-        play_system_sound("Glass")
-        msg = f"Money detected. {profit:.2f} dollars."
-        speak(msg, emotion="neutral")
-        
+
+def build_message(opportunity):
+    severity = opportunity["severity"]
+    profit = opportunity["estimated_profit"]
+    spread_pct = opportunity["effective_spread"] * 100
+
+    if severity == "escalated":
+        prefix = "Jackpot"
     else:
-        # Ignore small profits to avoid noise, or just beep
-        # play_system_sound("Bottle")
-        pass
+        prefix = "Opportunity"
+
+    return (
+        f"{prefix}. {opportunity['buy_exchange']} to {opportunity['sell_exchange']}. "
+        f"{profit:.2f} dollars. Spread {spread_pct:.2f} percent."
+    )
+
+
+def notify_opportunity(opportunity):
+    severity = opportunity["severity"]
+    sound = ALERT_SOUND_BY_SEVERITY.get(severity)
+    voice = ALERT_VOICE_BY_SEVERITY.get(severity, ALERT_VOICE_BY_SEVERITY["alert"])
+    rate = ALERT_RATE_BY_SEVERITY.get(severity, ALERT_RATE_BY_SEVERITY["alert"])
+
+    if sound:
+        play_system_sound(sound)
+
+    speak(build_message(opportunity), voice=voice, rate=rate)
