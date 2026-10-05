@@ -3,12 +3,130 @@
 **Spec Version:** 1.0.0  
 **Spec Hash:** `5b81761df2e2468c31a3c061f9997d8941fa5ac8aec8b53eb43348a2cc2bb190`  
 **Run ID:** `a918f8f0-15cb-42ee-8959-15dcf3a59821`  
-**Generation:** 10  
-**Timestamp:** 2026-10-05T21:41:00Z  
+**Generation:** 11  
+**Timestamp:** 2026-10-05T23:05:00Z  
 **Branch:** `codex/v1-refactor`  
-**Candidate Commit:** `9ba9f7fa8b27a94c960205581072e9a2519719c2`  
-**Tree Hash:** `48973801b659024f455b257b972604f632274466`  
-**Status:** `PUBLIC_RELEASE_READY`
+**Candidate Commit:** `a516ef8d179110d84121454a7d975abf24f974e2`  
+**Tree Hash:** `c311f4c3f3fec78178e1c3615e8b6d84e75503ef`  
+**Status:** `PUBLIC_RELEASE_READY` (Phase 2 advanced engineering complete)
+
+---
+
+## 0. Phase 2 Advanced Engineering (Gen 11)
+
+This generation inherits the Gen 10 baseline unchanged and adds the four
+advanced workstreams. Full detail lives in the per-task evidence files.
+
+### 0.1 Real-time WebSocket full-duplex connectors (T12)
+
+New module `src/ohmycrypto/adapters/stream.py` provides the shared substrate:
+`OrderbookMaintenance` (incremental L2 with bounded depth), `WebSocketStreamSession`
+(concurrent read pump plus outbound send, capped exponential-backoff reconnect
+with jitter and automatic resubscribe), `LatencySamples` (bounded ring with
+p50/p95/p99), and `ResyncRequest` (auditable recovery records).
+
+- Kraken book v2 (`wss://ws.kraken.com/v2`) and Coinbase Advanced Trade level2
+  (`wss://advanced-trade-ws.coinbase.com`) now stream live.
+- Verified live: Kraken bid/ask `85937.0 / 85937.1`, Coinbase `85929.22 / 85936.76`,
+  both non-crossed at 10 levels per side.
+
+**Four real defects were found and repaired:**
+
+| ID | Defect | Fix |
+|---|---|---|
+| WS-1 | Kraken signals snapshot/update at the **frame** level (`msg["type"]`), not per data entry — every live frame fell through and built zero books despite 100+ frames received | `frame_type = msg.get("type")` with per-entry fallback |
+| WS-2 | Kraken emits levels as objects `{"price":..,"qty":..}`, not `[price, qty]` — every level silently dropped | `_parse_side` accepts both forms |
+| WS-3 | Coinbase puts `product_id` on the **event**, not on update rows — symbol resolved to `None`, no book published | Read `event["product_id"]` with row fallback |
+| WS-4 | A delta arriving before any snapshot left an empty book with no recovery | `missing_snapshot` triggers REST resync |
+
+**Honest finding on Kraken CRC32 checksums:** live venue checksums do **not**
+reproduce under the documented algorithm. This was verified against multiple
+format variants and against ccxt's own reference implementation
+(`ccxt/pro/kraken.py`), which also fails and which **disables the check by
+default** with the comment *"the exchange checksum was not reliable"*. Verification
+therefore always runs and mismatches are always counted as diagnostics, but
+escalation to a REST resync is opt-in via `strict_checksum=True` (default
+`False`) — otherwise the connector would enter a continuous resync storm against
+an unreliable venue value. Both behaviours are covered by tests.
+
+Also repaired: `websockets` was resolving from an external Python 3.14
+environment via a leaked `PYTHONPATH` rather than the project venv, masking a
+missing dependency. It is now installed into `.venv`, declared in
+`pyproject.toml`, and `scripts/verify.py` strips inherited `PYTHONPATH` from
+gate subprocesses.
+
+**Tests:** 17 hermetic integration tests in
+`tests/integration/test_websocket_streams.py`, all running against a local
+scripted WebSocket server (no venue or network dependency): incremental
+apply/delete/truncation, memory bounds, CRC32 correctness, full-duplex
+send/receive, reconnect with resubscribe, sequence-gap resync, checksum
+mismatch in both modes, real-frame-schema regression, Coinbase level2,
+concurrent multi-venue churn, and high-volume memory stability.
+
+### 0.2 End-to-end native user journeys (T13)
+
+`desktop/tests/e2e.spec.ts` drives real headless Chromium against the built
+`dist/`, served locally. 8 journeys pass: cold start with semantic landmarks and
+labelled offline demo notice, market data load, depth comparison, deterministic
+offline replay (verifying recorded input hash `57d6a83e...`), diagnostics
+incident bundle export, theme persistence across a full reload, Quiet Mode
+suppression, and privacy/licensing statements.
+
+Two accessibility defects were found because `getByLabel` failed in a real
+browser: form labels in `CostComparisonView` and notification checkboxes in
+`SettingsView` had no `htmlFor`/`id` association. Both are fixed, and Quiet Mode
+now carries an `aria-describedby` explanation so suppression is explicit.
+
+### 0.3 Dual-architecture CI/CD (T14)
+
+- `.github/workflows/ci.yml`: verify job (Python 3.12, Node 22), Rust job
+  (Rust 1.90+), and a soak job that fails if RSS exceeds 512 MiB.
+- `.github/workflows/release.yml`: build matrix over
+  `aarch64-apple-darwin` (macos-14) and `x86_64-apple-darwin` (macos-13), a
+  `source` job producing the GPL-3.0 corresponding source archive once, and a
+  `publish` job asserting both DMGs plus exactly one source archive.
+- `scripts/verify.py --gate offline` and `scripts/release.py verify` are
+  **blocking** gates in both workflows.
+- `scripts/release.py` gained `--arch {arm64,x86_64}` and `--skip-source` so DMGs
+  are architecture-tagged and the source archive is not duplicated per arch.
+
+### 0.4 Soak reliability with resource bounds (T15)
+
+`scripts/soak.py` was rewritten to run both WebSocket streams for the full
+duration on a worker thread, sample real REST latency, and report p50/p95/p99.
+
+Result of the recorded 900-second run (`.agent/evidence/soak24/soak_report.json`):
+
+| Metric | Value | Bound |
+|---|---|---|
+| Duration | 900.93 s (target 900) | met |
+| Heartbeats | 179 | — |
+| Peak RSS | **117.66 MiB** | <= 512 MiB |
+| Final RSS | 39.2 MiB | — |
+| Errors | 0 | 0 |
+| Latency p50 / p95 / p99 | 2296.48 / 2675.37 / 2742.70 ms | measured, real |
+| REST polls | 60 attempted, 0 failed | — |
+| Kraken stream deltas | 14,384 | — |
+| Coinbase stream deltas | 4,869 | — |
+
+### 0.5 Gate hardening
+
+`scripts/verify.py --gate offline` now runs five checks and enforces **minimum
+test counts** so a silently shrinking suite cannot pass: pytest (min 53),
+typecheck, vitest (min 7), Playwright E2E (min 8), and the kernel budget
+invariant. Previously the gate ran only 31 tests while the baseline claimed 36.
+
+### 0.6 Updated verification commands
+
+```bash
+.venv/bin/python scripts/verify.py --gate offline --output .agent/evidence/offline
+.venv/bin/python scripts/verify.py --gate native --app release/candidate/OhMyCrypto.app --output .agent/evidence/native
+.venv/bin/python scripts/release.py verify --manifest release/candidate/manifest.json
+.venv/bin/python scripts/soak.py --duration 900 --profile release-v1 --output .agent/evidence/soak24
+cd desktop && npx playwright test
+```
+
+---
 
 ---
 
@@ -97,8 +215,8 @@ Manifest: `release/candidate/manifest.json`
 
 | File Name | Artifact Type | Size (Bytes) | SHA-256 Checksum |
 |---|---|---|---|
-| `OhMyCrypto-1.0.0-arm64.dmg` | macOS Installer Disk Image | 10,031,526 | `287f6eb8bd07569bea79eb2c5d38f562e001ab71948e1584fc3ee6cbb16a6428` |
-| `OhMyCrypto-1.0.0-source.tar.gz` | GPL-3.0 Corresponding Source | 57,800,387 | `f94e986ad95f12ac6ac85682b402234976a382101cf412bc1a33735009b73aed` |
+| `OhMyCrypto-1.0.0-arm64.dmg` | macOS Installer Disk Image | 10,096,506 | `e8e829e462bc929bafdb73a1f8144d41ff57f635c2459ad242438b538b8d3a86` |
+| `OhMyCrypto-1.0.0-source.tar.gz` | GPL-3.0 Corresponding Source | 57,905,640 | `aa440a106057ae198b9c6c8e0267fecf9c9ab480a3f196fd4b0aa436cb68ff32` |
 | `LICENSE` | GNU GPL-3.0-only License | 32,473 | `bb0f28623560f81af73277581b9317b13acd4e46f264c0bde4942441dc67031d` |
 | `NOTICES.md` | Legal & Dependency Notices | 2,381 | `476923456e425895712913b36e1a844fa7ebfca09aee511182be75172bbe3e04` |
 | `README.md` | Product Documentation | 2,348 | `ab6ceb33efa838f6b65c47d3f90a383d113eace4dd70aa5f47b65017ef1fba3f` |

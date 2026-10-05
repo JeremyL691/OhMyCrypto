@@ -1,5 +1,5 @@
 {
-  "release_id": "release_1.0.0_1791240138",
+  "release_id": "release_1.0.0_1791240212",
   "version": "1.0.0",
   "channel": "github",
   "license": "GPL-3.0-only",
@@ -14,20 +14,20 @@
     "arm64",
     "x86_64"
   ],
-  "commit": "9ba9f7fa8b27a94c960205581072e9a2519719c2",
-  "prepared_at_utc": "2026-10-05T22:42:18.941394+00:00",
+  "commit": "a516ef8d179110d84121454a7d975abf24f974e2",
+  "prepared_at_utc": "2026-10-05T22:43:32.130792+00:00",
   "artifacts": [
     {
       "name": "OhMyCrypto-1.0.0-arm64.dmg",
       "type": "installer_dmg",
-      "sha256": "6325dbb05fc5f8847d3a1f1e580ea77a6cefb6a338044aea1095af52cf3b3ced",
-      "size_bytes": 10096593
+      "sha256": "e8e829e462bc929bafdb73a1f8144d41ff57f635c2459ad242438b538b8d3a86",
+      "size_bytes": 10096506
     },
     {
       "name": "OhMyCrypto-1.0.0-source.tar.gz",
       "type": "corresponding_source_archive",
-      "sha256": "6367b80337224109d71d924063eaec265ba2fee46750a844120405905217ef39",
-      "size_bytes": 57905693
+      "sha256": "aa440a106057ae198b9c6c8e0267fecf9c9ab480a3f196fd4b0aa436cb68ff32",
+      "size_bytes": 57905640
     },
     {
       "name": "LICENSE",

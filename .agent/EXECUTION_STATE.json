@@ -6,11 +6,20 @@
   "run_id": "a918f8f0-15cb-42ee-8959-15dcf3a59821",
   "generation": 11,
   "candidate": {
-    "commit": "9ba9f7fa8b27a94c960205581072e9a2519719c2",
-    "tree_hash": "48973801b659024f455b257b972604f632274466",
-    "release_id": "release_1.0.0_1791236335",
+    "commit": "a516ef8d179110d84121454a7d975abf24f974e2",
+    "tree_hash": "c311f4c3f3fec78178e1c3615e8b6d84e75503ef",
+    "release_id": "release_1.0.0_1791240138",
     "manifest_path": "release/candidate/manifest.json",
-    "checksums_path": "release/candidate/checksums.txt"
+    "checksums_path": "release/candidate/checksums.txt",
+    "phase_2_additions": {
+      "websocket_streams": true,
+      "e2e_user_journeys": true,
+      "dual_arch_cicd": true,
+      "soak_latency_quantiles": true,
+      "python_tests": 53,
+      "ui_unit_tests": 7,
+      "e2e_tests": 8
+    }
   },
   "decisions": {
     "channel": "github_macos",

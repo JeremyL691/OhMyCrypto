@@ -8,3 +8,21 @@ Report output: .agent/evidence/soak24/soak_report.json
 [  10.8s / 900s] Heartbeat #3: RSS = 112.9 MB (Peak: 117.7 MB), latency samples = 2
 [  56.4s / 900s] Heartbeat #12: RSS = 99.2 MB (Peak: 117.7 MB), latency samples = 8
 [ 116.6s / 900s] Heartbeat #24: RSS = 79.8 MB (Peak: 117.7 MB), latency samples = 16
+[ 176.7s / 900s] Heartbeat #36: RSS = 25.8 MB (Peak: 117.7 MB), latency samples = 24
+[ 237.0s / 900s] Heartbeat #48: RSS = 46.0 MB (Peak: 117.7 MB), latency samples = 32
+[ 297.1s / 900s] Heartbeat #60: RSS = 39.2 MB (Peak: 117.7 MB), latency samples = 40
+[ 357.2s / 900s] Heartbeat #72: RSS = 52.0 MB (Peak: 117.7 MB), latency samples = 48
+[ 417.5s / 900s] Heartbeat #84: RSS = 53.2 MB (Peak: 117.7 MB), latency samples = 56
+[ 477.9s / 900s] Heartbeat #96: RSS = 48.8 MB (Peak: 117.7 MB), latency samples = 64
+[ 538.7s / 900s] Heartbeat #108: RSS = 90.5 MB (Peak: 117.7 MB), latency samples = 72
+[ 598.8s / 900s] Heartbeat #120: RSS = 69.5 MB (Peak: 117.7 MB), latency samples = 80
+[ 658.9s / 900s] Heartbeat #132: RSS = 83.1 MB (Peak: 117.7 MB), latency samples = 88
+[ 719.1s / 900s] Heartbeat #144: RSS = 87.6 MB (Peak: 117.7 MB), latency samples = 96
+[ 779.6s / 900s] Heartbeat #156: RSS = 101.4 MB (Peak: 117.7 MB), latency samples = 104
+[ 839.9s / 900s] Heartbeat #168: RSS = 56.5 MB (Peak: 117.7 MB), latency samples = 112
+
+Soak report written to: .agent/evidence/soak24/soak_report.json
+Total Duration: 900.9s (target 900s)
+Max RSS: 117.7 MB (Limit: 512.0 MB)
+Latency p50/p95/p99 ms: 2296.48 / 2675.374 / 2742.698
+Status: PASSED
