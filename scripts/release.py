@@ -204,7 +204,21 @@ def create_source_archive(output_path: Path, version: str) -> str:
     tar_file = output_path / tar_name
 
     def filter_tar(tarinfo):
-        exclude_dirs = {".git", ".venv", "node_modules", "dist", "target", "__pycache__", ".agent/evidence/soak24"}
+        exclude_dirs = {
+            ".git",
+            ".venv",
+            "venv",
+            ".venv-x86_64",
+            "node_modules",
+            "dist",
+            "target",
+            "build",
+            "__pycache__",
+            ".pytest_cache",
+            ".codegraph",
+            "release",
+            ".agent",
+        }
         parts = Path(tarinfo.name).parts
         for ex in exclude_dirs:
             if ex in parts:
@@ -497,6 +511,14 @@ def verify_release(manifest_path: Path) -> None:
     artifacts = manifest.get("artifacts", [])
     if not artifacts:
         failures.append("Manifest contains no artifacts; at least one release artifact is required.")
+
+    # B04 fail-closed gate: manifest must contain required binary and source artifacts
+    has_dmg = any(a.get("name", "").endswith(".dmg") or a.get("type") == "installer_dmg" for a in artifacts)
+    has_source = any("source" in a.get("name", "") or a.get("type") == "corresponding_source_archive" for a in artifacts)
+    if not has_dmg:
+        failures.append("Manifest missing required installer DMG artifact.")
+    if not has_source:
+        failures.append("Manifest missing required corresponding source archive artifact.")
 
     for a in artifacts:
         file_path = base_dir / a["name"]

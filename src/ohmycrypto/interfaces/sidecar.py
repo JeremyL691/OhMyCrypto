@@ -265,10 +265,37 @@ class SidecarEngine:
                     "speech_enabled": False,
                     "quiet_mode": False,
                 }
-            updates = payload.get("settings") or payload
-            for k, v in updates.items():
-                if k in existing:
-                    existing[k] = v
+            updates = payload.get("settings") if isinstance(payload.get("settings"), dict) else payload
+            if not isinstance(updates, dict):
+                raise ValueError("Settings payload must be a dictionary")
+
+            if "retention_days" in updates:
+                try:
+                    val = int(updates["retention_days"])
+                    if val < 1:
+                        raise ValueError("retention_days must be at least 1")
+                    existing["retention_days"] = val
+                except (ValueError, TypeError) as err:
+                    raise ValueError(f"Invalid retention_days: {updates['retention_days']}") from err
+
+            if "raw_quota_gb" in updates:
+                try:
+                    val = float(updates["raw_quota_gb"])
+                    if val <= 0:
+                        raise ValueError("raw_quota_gb must be positive")
+                    existing["raw_quota_gb"] = val
+                    if hasattr(self._engine(), "archives") and self._engine().archives is not None:
+                        self._engine().archives.quota_bytes = int(val * 1024 * 1024 * 1024)
+                except (ValueError, TypeError) as err:
+                    raise ValueError(f"Invalid raw_quota_gb: {updates['raw_quota_gb']}") from err
+
+            for bool_field in ("audio_enabled", "speech_enabled", "quiet_mode"):
+                if bool_field in updates:
+                    val = updates[bool_field]
+                    if not isinstance(val, bool):
+                        raise ValueError(f"{bool_field} must be a boolean, got {type(val).__name__}")
+                    existing[bool_field] = val
+
             self._engine().repo.set_setting("system_settings", existing)
         return {"settings": existing}
 
@@ -389,7 +416,10 @@ class SidecarEngine:
             bundle,
             override_buy_fee=override_decimal,
         )
-        return {"bundle_manifest": bundle.get("manifest"), "replay": replayed}
+        res = dict(replayed)
+        res["bundle_manifest"] = bundle.get("manifest")
+        res["replay"] = replayed
+        return res
 
     def _action_export_incident_bundle(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         incident_id = payload.get("incident_id")
@@ -401,9 +431,41 @@ class SidecarEngine:
 
     @staticmethod
     def _event_to_item(row: Dict[str, Any]) -> Dict[str, Any]:
-        opp = json.loads(row["opportunity_json"]) if isinstance(row.get("opportunity_json"), str) else row.get("opportunity", {})
-        buy_fill = opp.get("buy_fill") or {}
-        sell_fill = opp.get("sell_fill") or {}
+        opp = json.loads(row["opportunity_json"]) if isinstance(row.get("opportunity_json"), str) else (row.get("opportunity") or {})
+        buy_raw = opp.get("buy_fill") or {}
+        sell_raw = opp.get("sell_fill") or {}
+
+        def _norm_fill(f: Dict[str, Any], side: str) -> Dict[str, Any]:
+            spent = f.get("quote_spent") or f.get("spent_quote") or (opp.get("buy_spent") if side == "buy" else "0.0") or "0.0"
+            received = f.get("quote_received") or f.get("proceeds_quote") or (opp.get("sell_proceeds") if side == "sell" else "0.0") or "0.0"
+            fee = f.get("fee_quote") or f.get("fee_paid") or opp.get(f"{side}_fee") or "0.0"
+            avg_px = f.get("avg_price") or f.get("effective_avg_price") or opp.get(f"{side}_price") or "0.0"
+            acq = f.get("acquired_base") or opp.get("acquired_base") or "0.0"
+            return {
+                "side": side,
+                "requested_amount": str(f.get("requested_amount", "")),
+                "acquired_base": str(acq),
+                "spent_quote": str(spent),
+                "quote_spent": str(spent),
+                "proceeds_quote": str(received),
+                "quote_received": str(received),
+                "fee_paid": str(fee),
+                "fee_quote": str(fee),
+                "fee_base": str(f.get("fee_base", "0.0")),
+                "effective_avg_price": str(avg_px),
+                "avg_price": str(avg_px),
+                "residual_quote": str(f.get("residual_quote", "0.0")),
+                "residual_base": str(f.get("residual_base", "0.0")),
+                "levels_consumed": int(f.get("levels_consumed", 0)),
+                "is_complete": bool(f.get("is_complete", True)),
+                "rejection_reason": f.get("rejection_reason"),
+            }
+
+        buy_fill = _norm_fill(buy_raw, "buy")
+        sell_fill = _norm_fill(sell_raw, "sell")
+        input_hash = row.get("input_hash") or opp.get("input_hash") or ""
+        config_hash = row.get("config_hash") or opp.get("config_hash") or ""
+
         return {
             "event_id": row.get("event_id"),
             "episode_id": row.get("episode_id"),
@@ -420,8 +482,8 @@ class SidecarEngine:
             "is_positive": opp.get("is_positive"),
             "is_eligible": opp.get("is_eligible"),
             "eligibility_reasons": opp.get("eligibility_reasons") or [],
-            "input_hash": opp.get("input_hash"),
-            "config_hash": opp.get("config_hash"),
+            "input_hash": input_hash,
+            "config_hash": config_hash,
             "follow_up_500ms": row.get("follow_up_500ms"),
             "follow_up_1s": row.get("follow_up_1s"),
             "follow_up_3s": row.get("follow_up_3s"),

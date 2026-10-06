@@ -221,78 +221,59 @@ def verify_offline(output_dir: Path) -> dict:
 
 
 def verify_live(output_dir: Path, duration: int) -> dict:
-    print(f"=== Running Live Verification Gate (Duration: {duration}s) ===")
+    print(f"=== Running Live Verification Gate (Bounded 10 acquisitions) ===")
     import asyncio
     from ohmycrypto.adapters.coinbase import CoinbaseConnector
     from ohmycrypto.adapters.kraken import KrakenConnector
+
+    t_start = time.monotonic()
 
     async def _run_live_checks():
         checks = []
         coinbase = CoinbaseConnector()
         kraken = KrakenConnector()
 
-        try:
-            # Test Coinbase REST
-            t0 = time.monotonic()
-            cb_book = await coinbase.fetch_orderbook("BTC/USDT")
-            cb_lat = (time.monotonic() - t0) * 1000
-            cb_ok = len(cb_book.bids) > 0 and len(cb_book.asks) > 0 and cb_book.bids[0].price < cb_book.asks[0].price
-            checks.append({
-                "check": "coinbase_spot_l2_snapshot",
-                "symbol": "BTC/USDT",
-                "latency_ms": round(cb_lat, 2),
-                "bids_count": len(cb_book.bids),
-                "asks_count": len(cb_book.asks),
-                "top_bid": str(cb_book.bids[0].price) if cb_book.bids else None,
-                "top_ask": str(cb_book.asks[0].price) if cb_book.asks else None,
-                "passed": cb_ok,
-            })
-            print(f"  Coinbase Spot L2: {'PASS' if cb_ok else 'FAIL'} ({cb_lat:.1f}ms)")
-        except Exception as e:
-            checks.append({
-                "check": "coinbase_spot_l2_snapshot",
-                "symbol": "BTC/USDT",
-                "passed": False,
-                "error": str(e),
-            })
-            print(f"  Coinbase Spot L2: FAIL ({e})")
+        for venue, conn in [("coinbase", coinbase), ("kraken", kraken)]:
+            successful_acquisitions = 0
+            latencies = []
+            err_msg = None
+            for i in range(10):
+                try:
+                    t0 = time.monotonic()
+                    book = await conn.fetch_orderbook("BTC/USDT")
+                    lat = (time.monotonic() - t0) * 1000
+                    latencies.append(lat)
+                    if len(book.bids) > 0 and len(book.asks) > 0 and book.bids[0].price < book.asks[0].price:
+                        successful_acquisitions += 1
+                except Exception as e:
+                    err_msg = str(e)
+                await asyncio.sleep(0.05)
 
-        try:
-            # Test Kraken REST
-            t0 = time.monotonic()
-            kr_book = await kraken.fetch_orderbook("BTC/USDT")
-            kr_lat = (time.monotonic() - t0) * 1000
-            kr_ok = len(kr_book.bids) > 0 and len(kr_book.asks) > 0 and kr_book.bids[0].price < kr_book.asks[0].price
+            conn_passed = successful_acquisitions >= 10
+            avg_lat = sum(latencies) / len(latencies) if latencies else 0.0
             checks.append({
-                "check": "kraken_spot_l2_snapshot",
+                "check": f"{venue}_spot_l2_acquisitions",
                 "symbol": "BTC/USDT",
-                "latency_ms": round(kr_lat, 2),
-                "bids_count": len(kr_book.bids),
-                "asks_count": len(kr_book.asks),
-                "top_bid": str(kr_book.bids[0].price) if kr_book.bids else None,
-                "top_ask": str(kr_book.asks[0].price) if kr_book.asks else None,
-                "passed": kr_ok,
+                "requested_acquisitions": 10,
+                "successful_acquisitions": successful_acquisitions,
+                "avg_latency_ms": round(avg_lat, 2),
+                "passed": conn_passed,
+                "error": err_msg if not conn_passed else None,
             })
-            print(f"  Kraken Spot L2: {'PASS' if kr_ok else 'FAIL'} ({kr_lat:.1f}ms)")
-        except Exception as e:
-            checks.append({
-                "check": "kraken_spot_l2_snapshot",
-                "symbol": "BTC/USDT",
-                "passed": False,
-                "error": str(e),
-            })
-            print(f"  Kraken Spot L2: FAIL ({e})")
+            print(f"  {venue.capitalize()} Spot L2 (10 acquisitions): {'PASS' if conn_passed else 'FAIL'} ({successful_acquisitions}/10 successful, avg {avg_lat:.1f}ms)")
 
         await coinbase.close()
         await kraken.close()
         return checks
 
     checks = asyncio.run(_run_live_checks())
+    actual_duration = round(time.monotonic() - t_start, 2)
     all_passed = all(c.get("passed", False) for c in checks)
     return {
         "gate": "live",
         "passed": all_passed,
-        "duration_sec": duration,
+        "duration_sec": actual_duration,
+        "requested_duration_sec": duration,
         "checks": checks,
     }
 
@@ -301,47 +282,20 @@ def verify_native(output_dir: Path, app_path: str | None) -> dict:
     print("=== Running Native Verification Gate ===")
     checks = []
 
+    # B03: Required native app bundle missing cannot pass on sidecar ping fallback
     if not app_path or not Path(app_path).exists():
-        # Check bundled sidecar binary as alternative. PyInstaller onefile
-        # builds place the executable at dist/ohmycrypto-sidecar; onedir
-        # builds nest it one level deeper.
-        for sidecar_candidate in (
-            Path("dist/ohmycrypto-sidecar"),
-            Path("dist/ohmycrypto-sidecar/ohmycrypto-sidecar"),
-        ):
-            if sidecar_candidate.exists():
-                sidecar_bin = sidecar_candidate
-                break
-        else:
-            sidecar_bin = None
-        if sidecar_bin is not None:
-            t0 = time.monotonic()
-            proc = subprocess.Popen(
-                [str(sidecar_bin)],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            # Send ping action
-            out_line, _ = proc.communicate(input=json.dumps({"id": "ping_1", "action": "ping"}) + "\n", timeout=5)
-            status_obj = json.loads(out_line.strip()) if out_line.strip() else {}
-            proc.wait()
-            sidecar_ok = proc.returncode == 0 and status_obj.get("status") == "ok" and status_obj.get("payload", {}).get("pong") is True
-            checks.append({
-                "check": "bundled_sidecar_binary_execution",
-                "path": str(sidecar_bin),
-                "passed": sidecar_ok,
-                "exit_code": proc.returncode,
-                "response": status_obj,
-            })
-            print(f"  Bundled Sidecar Execution: {'PASS' if sidecar_ok else 'FAIL'}")
-        else:
-            checks.append({
-                "check": "native_app_bundle",
-                "passed": False,
-                "reason": f"Application path not provided or does not exist: {app_path}",
-            })
+        checks.append({
+            "check": "native_app_bundle",
+            "passed": False,
+            "reason": f"Required application bundle path not provided or does not exist: {app_path}",
+        })
+        print(f"  Native App Bundle: FAIL (missing {app_path})")
+        return {
+            "gate": "native",
+            "passed": False,
+            "app_path": app_path,
+            "checks": checks,
+        }
     else:
         app = Path(app_path)
         # 1. Info.plist exists

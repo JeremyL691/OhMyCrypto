@@ -85,6 +85,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  width: 100%;
+  max-width: 100vw;
   overflow: hidden;
 }
 
@@ -97,6 +99,9 @@ body {
   border-bottom: 1px solid var(--border-color);
   padding: var(--space-2) var(--space-6);
   flex-shrink: 0;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
 }
 
 .brand-section {
@@ -119,7 +124,9 @@ body {
 
 .nav-links {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
+  max-width: 100%;
 }
 
 .nav-button {
@@ -385,6 +392,42 @@ body {
   .navbar {
     flex-direction: column;
     gap: var(--space-2);
-    align-items: flex-start;
+    align-items: stretch;
+    padding: var(--space-2) var(--space-4);
+  }
+  .nav-links {
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    width: 100%;
+  }
+  .nav-button {
+    font-size: var(--font-size-xs);
+    padding: var(--space-1) var(--space-2);
+    flex-grow: 1;
+    justify-content: center;
+  }
+  .nav-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    padding: var(--space-2);
+  }
+  .nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    width: 100%;
+  }
+  .nav-button {
+    padding: var(--space-1) var(--space-2);
+    font-size: 11px;
+    gap: var(--space-1);
+  }
+  .brand-section {
+    font-size: var(--font-size-base);
   }
 }

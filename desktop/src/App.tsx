@@ -26,6 +26,7 @@ export const App: React.FC = () => {
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
   const [replayItem, setReplayItem] = useState<OpportunityItem | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -37,8 +38,11 @@ export const App: React.FC = () => {
       setStatus(s);
       setOpportunities(opps);
       setIncidents(incs);
+      setLoadError(null);
     } catch (err) {
-      console.error("Failed to load data:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Failed to load data:", msg);
+      setLoadError(msg);
     }
   };
 
@@ -59,6 +63,14 @@ export const App: React.FC = () => {
       />
 
       <main className="main-content">
+        {loadError && (
+          <aside className="demo-banner" style={{ borderLeftColor: "var(--color-danger)" }} role="alert">
+            <span>
+              <strong>COMMUNICATION ALERT:</strong> Sidecar update error: {loadError}
+            </span>
+          </aside>
+        )}
+
         {status.is_demo && (
           <aside className="demo-banner" role="status">
             <span>

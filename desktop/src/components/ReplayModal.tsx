@@ -9,16 +9,25 @@ interface ReplayModalProps {
 }
 
 export const ReplayModal: React.FC<ReplayModalProps> = ({ item, onClose }) => {
-  const [overrideFee, setOverrideFee] = useState<string>("0.0025");
+  const [overrideFee, setOverrideFee] = useState<string>("");
   const [replayResult, setReplayResult] = useState<any>(null);
   const [running, setRunning] = useState(false);
 
   const handleRunReplay = async () => {
     setRunning(true);
-    const res = await api.replayEvent(item.event_id, overrideFee);
-    setReplayResult(res);
-    setRunning(false);
+    try {
+      const res = await api.replayEvent(item.event_id, overrideFee.trim() ? overrideFee.trim() : undefined);
+      const actualResult = res?.replay || res;
+      setReplayResult(actualResult);
+    } catch (err) {
+      console.error("Replay failed:", err);
+    } finally {
+      setRunning(false);
+    }
   };
+
+  const baseToken = item.symbol ? item.symbol.split("/")[0] : "Base";
+  const quoteToken = item.symbol ? (item.symbol.split("/")[1] || "Quote") : "Quote";
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="replay-title">
@@ -43,34 +52,39 @@ export const ReplayModal: React.FC<ReplayModalProps> = ({ item, onClose }) => {
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span style={{ color: "var(--text-muted)" }}>Input Hash (SHA-256):</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{item.input_hash.slice(0, 24)}...</span>
+            {item.input_hash ? (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{item.input_hash.slice(0, 24)}...</span>
+            ) : (
+              <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontSize: 11 }}>Legacy Record (No Hash)</span>
+            )}
           </div>
 
           <div className="grid-2" style={{ marginTop: 8 }}>
             <div style={{ padding: 8, backgroundColor: "var(--bg-subtle)", borderRadius: "var(--radius)" }}>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>Buy Leg ({item.buy_venue})</div>
-              <div>Spent: ${item.buy_fill.quote_spent}</div>
-              <div>Fee: ${item.buy_fill.fee_quote}</div>
-              <div>Acquired: {item.buy_fill.acquired_base} BTC</div>
-              <div>VWAP: ${item.buy_fill.avg_price}</div>
+              <div>Spent: ${item.buy_fill?.quote_spent ?? item.buy_fill?.spent_quote ?? "0.00"}</div>
+              <div>Fee: ${item.buy_fill?.fee_quote ?? item.buy_fill?.fee_paid ?? "0.00"}</div>
+              <div>Acquired: {item.buy_fill?.acquired_base ?? "0"} {baseToken}</div>
+              <div>VWAP: ${item.buy_fill?.avg_price ?? item.buy_fill?.effective_avg_price ?? "0.00"}</div>
             </div>
 
             <div style={{ padding: 8, backgroundColor: "var(--bg-subtle)", borderRadius: "var(--radius)" }}>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>Sell Leg ({item.sell_venue})</div>
-              <div>Proceeds: ${item.sell_fill.quote_received}</div>
-              <div>Fee: ${item.sell_fill.fee_quote}</div>
-              <div>Sold: {item.buy_fill.acquired_base} BTC</div>
-              <div>VWAP: ${item.sell_fill.avg_price}</div>
+              <div>Proceeds: ${item.sell_fill?.quote_received ?? item.sell_fill?.proceeds_quote ?? "0.00"}</div>
+              <div>Fee: ${item.sell_fill?.fee_quote ?? item.sell_fill?.fee_paid ?? "0.00"}</div>
+              <div>Sold: {item.sell_fill?.acquired_base ?? item.buy_fill?.acquired_base ?? "0"} {baseToken}</div>
+              <div>VWAP: ${item.sell_fill?.avg_price ?? item.sell_fill?.effective_avg_price ?? "0.00"}</div>
             </div>
           </div>
 
           <div style={{ marginTop: 8, padding: 8, border: "1px solid var(--border-color)", borderRadius: "var(--radius)" }}>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Replay Parameter Override (Simulation)</div>
             <div className="form-group">
-              <label className="form-label">Taker Fee Rate</label>
+              <label className="form-label">Taker Fee Rate (optional)</label>
               <input
                 type="text"
                 className="form-input"
+                placeholder="Leave blank to verify original recorded fees"
                 value={overrideFee}
                 onChange={(e) => setOverrideFee(e.target.value)}
               />
@@ -99,8 +113,8 @@ export const ReplayModal: React.FC<ReplayModalProps> = ({ item, onClose }) => {
                   <span>Replay Result Under Modified Fee Profile:</span>
                 )}
               </div>
-              <div>Original Profit: {replayResult.original_profit} USDT</div>
-              <div>Replayed Profit: {replayResult.replayed_profit} USDT</div>
+              <div>Original Profit: {replayResult.original_profit ?? replayResult.original_profit_quote ?? "0.00"} {quoteToken}</div>
+              <div>Replayed Profit: {replayResult.replayed_profit ?? replayResult.replayed_profit_quote ?? "0.00"} {quoteToken}</div>
             </div>
           )}
         </div>

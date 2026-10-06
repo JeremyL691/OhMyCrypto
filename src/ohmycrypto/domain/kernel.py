@@ -311,6 +311,8 @@ def compute_canonical_input_payload(
         "sell_bids": [[str(lvl.price), str(lvl.amount)] for lvl in sell_book.bids],
         "buy_book_seq": buy_book.applied_sequence,
         "sell_book_seq": sell_book.applied_sequence,
+        "buy_book_quality": buy_book.quality_status,
+        "sell_book_quality": sell_book.quality_status,
         "buy_instrument": {
             "price_increment": str(buy_instrument.price_increment),
             "amount_increment": str(buy_instrument.amount_increment),
@@ -430,6 +432,10 @@ def evaluate_cross_venue_opportunity(
         reasons.append("incompatible_base_assets")
     if buy_instrument.quote != sell_instrument.quote:
         reasons.append("unsupported_cross_quote_conversion")
+    if buy_book.quality_status not in ("clean", "resynced"):
+        reasons.append(f"buy_book_quality_{buy_book.quality_status}")
+    if sell_book.quality_status not in ("clean", "resynced"):
+        reasons.append(f"sell_book_quality_{sell_book.quality_status}")
 
     input_payload = compute_canonical_input_payload(
         symbol=symbol,
@@ -551,6 +557,8 @@ def evaluate_cross_venue_opportunity(
         and (effective_spread >= min_spread_threshold)
         and ("incompatible_base_assets" not in reasons)
         and ("unsupported_cross_quote_conversion" not in reasons)
+        and (buy_book.quality_status in ("clean", "resynced"))
+        and (sell_book.quality_status in ("clean", "resynced"))
     )
 
     res_payload = compute_canonical_result_payload(

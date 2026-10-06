@@ -1,0 +1,7 @@
+Transcript excerpts from isolated temporary-data production-class probes, October 6, 2026. No business source edits or production user-data writes.
+quota_probe {"hash_created": true, "quota": 16, "actual_bytes": 114}
+incident_probe {"closed_at_ms": 1, "persisted_evidence": {"samples_count": 1, "latest": {"sample": 1}}, "in_memory_samples": 2}
+
+Probe setup: create_connection + run_migrations + StorageRepository + ArchiveManager(quota_bytes=16). write_capture({"payload": "x"*100}). DiagnosticService.record_fault twice at UTC ms 1000/1100 with sample 1/2, followed by three record_clean_observation("coinbase", "rest_l2", True) calls matching the production monitor's positional call. Query persisted incident and in-memory samples.
+
+Current process-list inspection could not run in the restricted planning environment (sysmond service unavailable). No soak/process launch was attempted. Preserve owner cancellation; successor must inspect actual handles/processes on resume.

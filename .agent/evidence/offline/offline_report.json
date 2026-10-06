@@ -1,9 +1,9 @@
 {
-  "verification_id": "verify_offline_1791258106",
+  "verification_id": "verify_offline_1791278125",
   "gate": "offline",
-  "commit": "11db10ccb6f7060ed1793600b24e45fa22cdf182",
-  "timestamp_start_utc": "2026-10-06T03:41:46.242795+00:00",
-  "timestamp_end_utc": "2026-10-06T03:42:19.295877+00:00",
+  "commit": "35361dee0fb20d65e3045a007afecdd813ee2cb6",
+  "timestamp_start_utc": "2026-10-06T09:15:25.988217+00:00",
+  "timestamp_end_utc": "2026-10-06T09:16:00.734078+00:00",
   "platform": {
     "system": "Darwin",
     "machine": "arm64",
@@ -16,8 +16,8 @@
       "command": "/Users/jeremyliu/Desktop/Projects/OhMyCrypto/.venv/bin/python -m pytest tests/unit tests/replay tests/integration -q",
       "passed": true,
       "exit_code": 0,
-      "summary": "71 passed in 22.71s",
-      "tests_collected": 71,
+      "summary": "88 passed in 23.70s",
+      "tests_collected": 88,
       "min_required": 57
     },
     {
@@ -39,7 +39,7 @@
       "command": "npx playwright test --reporter=list",
       "passed": true,
       "exit_code": 0,
-      "tests_collected": 8,
+      "tests_collected": 9,
       "min_required": 8
     },
     {

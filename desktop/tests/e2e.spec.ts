@@ -216,4 +216,25 @@ test.describe("OhMyCrypto Desktop E2E", () => {
     await expect(page.getByText(/No telemetry or automated upload occurs/i)).toBeVisible();
     await expect(page.getByText(/GPL-3\.0-only/i)).toBeVisible();
   });
+
+  test("narrow 320px viewport navigation does not shift shell offscreen (A10)", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto(BASE_URL, { waitUntil: "networkidle" });
+
+    const settingsButton = page.getByRole("button", { name: "Settings" });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+
+    // Verify Settings view is visible
+    await expect(page.getByText("System Settings, Storage & Privacy")).toBeVisible();
+
+    // Verify main content x position is not shifted offscreen (x >= 0)
+    const mainBox = await page.locator("main").boundingBox();
+    expect(mainBox).not.toBeNull();
+    expect(mainBox!.x).toBeGreaterThanOrEqual(0);
+
+    // Verify app container scrollLeft is 0 (no offscreen scroll)
+    const scrollLeft = await page.evaluate(() => document.querySelector(".app-container")?.scrollLeft ?? 0);
+    expect(scrollLeft).toBe(0);
+  });
 });

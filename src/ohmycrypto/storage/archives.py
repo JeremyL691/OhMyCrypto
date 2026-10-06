@@ -47,12 +47,14 @@ class ArchiveManager:
                 self.pin_capture(content_hash)
             return content_hash
 
-        # Safe quota check: if non-pinned and quota is exceeded, prune
-        if not is_pinned and self.get_total_size_bytes() >= self.quota_bytes:
-            self.prune_old_captures()
-            if self.get_total_size_bytes() >= self.quota_bytes:
-                # Quota full; safely omit unpinned archive capture
-                return ""
+        incoming_size = len(canon_bytes)
+        # Safe quota check: reserve incoming bytes; if non-pinned and quota exceeded, prune
+        if not is_pinned:
+            if self.get_total_size_bytes() + incoming_size > self.quota_bytes:
+                self.prune_old_captures()
+                if self.get_total_size_bytes() + incoming_size > self.quota_bytes:
+                    # Quota full; safely omit unpinned archive capture
+                    return ""
 
         tmp_file = f"{target_file}.tmp.{os.getpid()}"
         with open(tmp_file, "w", encoding="utf-8") as f:

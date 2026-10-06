@@ -140,8 +140,7 @@ class CostAdvisorService:
         """Compute execution costs across an amount grid (e.g. 100, 1000, 10000)."""
         grid_results: Dict[str, List[Dict[str, Any]]] = {}
         for amt in grid_amounts:
-            key = str(amt)
-            grid_results[key] = self.compare_single_amount(
+            res = self.compare_single_amount(
                 side=side,
                 amount=amt,
                 symbol=symbol,
@@ -149,6 +148,8 @@ class CostAdvisorService:
                 fee_profiles=fee_profiles,
                 instruments=instruments,
             )
+            grid_results[str(amt)] = res
+            grid_results[f"{amt:.2f}"] = res
         return grid_results
 
     def check_inventory_feasibility(
@@ -193,7 +194,7 @@ class CostAdvisorService:
         instruments: Dict[str, Instrument],
     ) -> Dict[str, Any]:
         """Evaluate multi-child split order scenario consuming disjoint depth with per-child fees."""
-        child_results: List[Dict[str, Any]] = []
+        children: List[Dict[str, Any]] = []
         total_spent_or_received = Decimal("0")
         total_base_acquired_or_sold = Decimal("0")
         total_fees_quote = Decimal("0")
@@ -215,17 +216,36 @@ class CostAdvisorService:
 
             if book is None:
                 all_complete = False
-                child_results.append({"venue": venue, "error": "missing_book"})
+                child_dto = {
+                    "venue": venue,
+                    "allocated_amount": str(child_amt),
+                    "acquired_base": "0.00",
+                    "quote_spent": "0.00",
+                    "quote_received": "0.00",
+                    "fee_quote": "0.00",
+                    "is_complete": False,
+                    "rejection_reason": "missing_book",
+                    "error": "missing_book",
+                }
+                children.append(child_dto)
                 continue
 
             if side == "buy":
                 current_asks = venue_asks.get(venue, ())
                 fill = estimate_buy_fill(current_asks, child_amt, fee, inst)
-                child_results.append({
+                fill_dict = fill.to_dict() if hasattr(fill, "to_dict") else asdict(fill)
+                child_dto = {
                     "venue": venue,
+                    "allocated_amount": str(child_amt),
                     "budget": str(child_amt),
-                    "fill": fill,
-                })
+                    "acquired_base": str(fill.acquired_base),
+                    "quote_spent": str(fill.quote_spent),
+                    "fee_quote": str(fill.fee_quote),
+                    "is_complete": fill.is_complete,
+                    "rejection_reason": fill.rejection_reason,
+                    "fill": fill_dict,
+                }
+                children.append(child_dto)
                 base_consumed = fill.acquired_base + fill.fee_base
                 venue_asks[venue] = _consume_depth_buy(current_asks, base_consumed)
 
@@ -238,11 +258,19 @@ class CostAdvisorService:
             else:
                 current_bids = venue_bids.get(venue, ())
                 fill = estimate_sell_fill(current_bids, child_amt, fee, inst)
-                child_results.append({
+                fill_dict = fill.to_dict() if hasattr(fill, "to_dict") else asdict(fill)
+                child_dto = {
                     "venue": venue,
+                    "allocated_amount": str(child_amt),
                     "base_amount": str(child_amt),
-                    "fill": fill,
-                })
+                    "acquired_base": "0.00",
+                    "quote_received": str(fill.quote_received),
+                    "fee_quote": str(fill.fee_quote),
+                    "is_complete": fill.is_complete,
+                    "rejection_reason": fill.rejection_reason,
+                    "fill": fill_dict,
+                }
+                children.append(child_dto)
                 base_consumed = child_amt - fill.residual_base
                 venue_bids[venue] = _consume_depth_sell(current_bids, base_consumed)
 
@@ -253,12 +281,20 @@ class CostAdvisorService:
                 if not fill.is_complete:
                     all_complete = False
 
+        effective_avg_price = Decimal("0")
+        if total_base_acquired_or_sold > Decimal("0"):
+            effective_avg_price = (total_spent_or_received / total_base_acquired_or_sold).quantize(Decimal("0.01"))
+
         return {
             "side": side,
+            "symbol": symbol,
             "all_complete": all_complete,
-            "child_results": child_results,
-            "total_quote": str(total_spent_or_received),
             "total_base": str(total_base_acquired_or_sold),
+            "total_spent_or_received": str(total_spent_or_received),
+            "total_quote": str(total_spent_or_received),
             "total_fees_quote": str(total_fees_quote),
             "total_fees_base": str(total_fees_base),
+            "effective_avg_price": str(effective_avg_price),
+            "children": children,
+            "child_results": children,
         }

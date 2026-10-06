@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional
 from ohmycrypto.adapters.base import BaseSpotConnector
 from ohmycrypto.adapters.coinbase import CoinbaseConnector
 from ohmycrypto.adapters.kraken import KrakenConnector
-from ohmycrypto.domain.models import FeeProfile, Instrument
+from ohmycrypto.domain.models import FeeProfile, Instrument, decimal_validator
 from ohmycrypto.services.diagnostics import DiagnosticService
 from ohmycrypto.services.opportunity import OpportunityService
 from ohmycrypto.storage.archives import ArchiveManager
@@ -133,8 +133,8 @@ class MonitoringService:
             if symbol:
                 self._config["symbol"] = str(symbol)
             if budget is not None:
-                Decimal(str(budget))  # validate finite decimal, raise otherwise
-                self._config["budget"] = str(budget)
+                d = decimal_validator(budget, "budget", allow_zero=False, allow_negative=False)
+                self._config["budget"] = str(d)
             if buy_venue:
                 self._config["buy_venue"] = str(buy_venue)
             if sell_venue:
@@ -304,9 +304,10 @@ class MonitoringService:
                     venue, (time.monotonic() - t0_map[venue]) * 1000
                 )
                 channel = "ws_book" if book.snapshot_origin.startswith("stream") else "rest_l2"
-                self.diagnostics.record_clean_observation(
-                    venue, channel, bool(book.bids and book.asks)
-                )
+                if book.bids and book.asks:
+                    self.diagnostics.record_clean_observation(
+                        venue, channel, now_utc_ms=int(time.time() * 1000)
+                    )
             for venue, err in fetch_errors.items():
                 self.diagnostics.record_fault(
                     connector=venue,
