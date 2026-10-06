@@ -266,6 +266,53 @@ def prepare_release(
             f"{detected_arch}. Build it with an architecture-matched interpreter."
         )
 
+    # 2.5 Build the Tauri shell binary for the requested architecture.
+    # The shell is the bundle's CFBundleExecutable: a real native process that
+    # owns the sidecar child and serves the embedded frontend (guide Section
+    # 4). A launcher-script executable cannot display the UI and dies at
+    # launch, so it is not an acceptable substitute.
+    print(f"  Building Tauri shell binary ({arch})...")
+    cargo_cmd = ["cargo", "build", "--release"]
+    if arch != "arm64":
+        cargo_cmd.append(f"--target={arch}-apple-darwin")
+    cargo_env = gate_env()
+    if arch != "arm64":
+        # Cross-compiling needs the rustup toolchain (whose rustc carries the
+        # x86_64 std); a PATH cargo from Homebrew only ships the host std and
+        # its rustc would silently fail with E0463.
+        try:
+            toolchain_cargo = subprocess.run(
+                ["rustup", "which", "cargo"], capture_output=True, text=True, check=True
+            ).stdout.strip()
+        except Exception:
+            sys.exit(
+                "Cross-arch shell build requires rustup with the target's std "
+                "(rustup target add x86_64-apple-darwin)."
+            )
+        if not toolchain_cargo:
+            sys.exit("rustup has no default toolchain; run `rustup default stable`.")
+        cargo_env["RUSTC"] = str(Path(toolchain_cargo).parent / "rustc")
+    cargo_res = subprocess.run(
+        cargo_cmd,
+        cwd=str(REPO_ROOT / "desktop" / "src-tauri"),
+        env=cargo_env,
+    )
+    if cargo_res.returncode != 0:
+        sys.exit(f"Tauri shell build failed with exit code {cargo_res.returncode}")
+    shell_bin = (
+        REPO_ROOT / "desktop" / "src-tauri" / "target"
+        / (f"{arch}-apple-darwin/release" if arch != "arm64" else "release")
+        / "ohmycrypto"
+    )
+    if not shell_bin.exists():
+        sys.exit(f"Tauri shell binary missing after build: {shell_bin}")
+    shell_arch = detect_macho_arch(shell_bin)
+    print(f"  Shell architecture: {shell_arch} (requested {arch})")
+    if shell_arch is not None and shell_arch != arch and shell_arch != "universal":
+        sys.exit(
+            f"Shell architecture mismatch: bundle requests {arch} but shell binary is {shell_arch}."
+        )
+
     # 3. Create the .app bundle in a File-Provider-free staging directory.
     # release/candidate lives under iCloud-synced Desktop storage; codesign
     # refuses to sign bundles carrying File Provider xattrs, which are
@@ -312,17 +359,11 @@ def prepare_release(
     with open(contents_dir / "Info.plist", "w", encoding="utf-8") as f:
         f.write(info_plist_content)
 
-    # Launcher executable: must exec the actual sidecar binary name, which is
-    # architecture-tagged for non-default architectures.
-    launcher_script = f"""#!/bin/sh
-DIR="$(cd "$(dirname "$0")" && pwd)"
-export OHMYCRYPTO_APP_ROOT="$(dirname "$DIR")"
-exec "$DIR/sidecar/{sidecar_name}" "$@"
-"""
-    launcher_path = macos_dir / "OhMyCrypto"
-    with open(launcher_path, "w", encoding="utf-8") as f:
-        f.write(launcher_script)
-    os.chmod(launcher_path, 0o755)
+    # Executable: the Tauri shell binary (CFBundleExecutable = OhMyCrypto).
+    # It owns the sidecar child process and serves the embedded frontend.
+    shell_target = macos_dir / "OhMyCrypto"
+    shutil.copy2(shell_bin, shell_target)
+    os.chmod(shell_target, 0o755)
 
     # Copy sidecar into MacOS/sidecar (single file for onefile builds).
     sidecar_target_dir = macos_dir / "sidecar"

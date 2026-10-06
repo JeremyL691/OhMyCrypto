@@ -107,7 +107,7 @@ def verify_offline(output_dir: Path) -> dict:
 
     # 1. pytest over unit, replay, and integration suites.
     # The minimum count is enforced so a silently shrinking suite cannot pass.
-    MIN_PYTEST_TESTS = 53
+    MIN_PYTEST_TESTS = 57
     pytest_cmd = [sys.executable, "-m", "pytest", "tests/unit", "tests/replay", "tests/integration", "-q"]
     code, out, err = run_cmd(pytest_cmd)
     summary_line = out.strip().splitlines()[-1] if out.strip() else err.strip()

@@ -33,8 +33,14 @@ def get_default_db_path() -> str:
     return os.path.join(data_dir, "ohmycrypto.sqlite3")
 
 
-def create_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
-    """Create and configure a SQLite connection."""
+def create_connection(db_path: Optional[str] = None, check_same_thread: bool = True) -> sqlite3.Connection:
+    """Create and configure a SQLite connection.
+
+    check_same_thread=False allows one connection to be shared between the
+    service loop thread and the interface thread; callers that do this must
+    serialize access themselves (MonitoringService does, with a dedicated
+    RLock around every repository touch).
+    """
     if db_path is None:
         db_path = get_default_db_path()
 
@@ -43,7 +49,9 @@ def create_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
         os.makedirs(parent_dir, exist_ok=True)
 
     try:
-        conn = sqlite3.connect(db_path, timeout=10.0, isolation_level=None)
+        conn = sqlite3.connect(
+            db_path, timeout=10.0, isolation_level=None, check_same_thread=check_same_thread
+        )
         conn.row_factory = sqlite3.Row
 
         # Enforce SQLite PRAGMAs in autocommit mode
