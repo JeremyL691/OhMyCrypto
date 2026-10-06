@@ -1,0 +1,9 @@
+=== Starting Continuous Soak Profile: release-v1 ===
+Target duration: 86400s (24.00 hours)
+Sampling symbol: BTC/USDT
+WebSocket stream: enabled
+Report output: .agent/evidence/soak24h/soak_report.json
+[kraken-ws] stream error: [Errno 8] nodename nor servname provided, or not known
+[   5.8s / 86400s] Heartbeat #1: RSS = 27.6 MB (Peak: 27.6 MB), latency samples = 2
+[   5.9s / 86400s] Heartbeat #2: RSS = 111.3 MB (Peak: 111.3 MB), latency samples = 2
+[  10.9s / 86400s] Heartbeat #3: RSS = 75.5 MB (Peak: 111.3 MB), latency samples = 2

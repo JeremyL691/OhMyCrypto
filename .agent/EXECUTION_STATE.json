@@ -397,15 +397,26 @@
       "job_id": "soak24h_gen13",
       "task_id": "T18",
       "logical_invocation": "soak_86400_release_v1_a8b868a",
-      "command": "caffeinate -is .venv/bin/python scripts/soak.py --duration 86400 --profile release-v1 --output .agent/evidence/soak24h",
+      "attempt": 2,
+      "command": "caffeinate -is .venv/bin/python scripts/soak.py --duration 86400 --profile release-v1 --output .agent/evidence/soak24h > .agent/evidence/soak24h/soak_run.log 2>&1",
       "candidate_commit": "a8b868a8553f7a98ecb7375e31e4771e1813db3a",
       "state": "running",
-      "started_utc": "2026-10-06T03:05:00Z",
+      "started_utc": "2026-10-06T04:45:00Z",
       "output": ".agent/evidence/soak24h/",
-      "liveness": "background task handle owned by the lead session; on takeover inspect .agent/evidence/soak24h/soak_report.json and running processes before any restart"
+      "liveness": "background task handle owned by the lead session; heartbeat trail in .agent/evidence/soak24h/soak_run.log; on takeover verify process etime and last heartbeat before any restart",
+      "retry_lineage_note": "Attempt 1 (same candidate) was SIGTERMed at 1550.9 s by an external cause and its harness pipe discarded the heartbeat trail; preserved as soak_report_interrupted_1550s.json. Per Section 12.1 a premature stop cannot contribute to the window; the fresh full window started after the pass-criterion fix (soak.py no longer reports PASSED below the target duration)."
     }
   ],
-  "retry_lineage": [],
+  "retry_lineage": [
+    {
+      "attempt_id": "soak24h_gen13_attempt1",
+      "job_id": "soak24h_gen13",
+      "failure_class": "external_sigterm_premature_stop",
+      "observed_utc": "2026-10-06T03:22:00Z",
+      "evidence": ".agent/evidence/soak24h/soak_report_interrupted_1550s.json",
+      "remedy": "pass-criterion hardening + file-based heartbeat logging + fresh full window (attempt 2)"
+    }
+  ],
   "evidence_index": [
     ".agent/evidence/baseline_manifest.json",
     ".agent/evidence/t01_sidecar_packaging_spike.json",

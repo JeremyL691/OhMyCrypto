@@ -268,8 +268,17 @@ def main():
     final_rss_mb = get_process_rss_mb(current_pid)
     latency_q = latency.quantiles()
 
+    # Section 12.1: "RUNNING, a PID or partial heartbeats cannot pass R12."
+    # The window passes only when it actually covered the requested duration
+    # (small grace for scheduler jitter), with zero errors and bounded RSS.
+    # A premature stop (signal, crash, host reaping) is a FAILED window.
+    grace_sec = 5.0
+    if stop_requested:
+        outcome = False
+    else:
+        outcome = actual_duration >= (args.duration - grace_sec)
     passed = (
-        actual_duration >= min(args.duration, 5)
+        outcome
         and len(errors) == 0
         and max_rss_mb <= RSS_LIMIT_MIB
     )

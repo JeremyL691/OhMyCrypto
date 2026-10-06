@@ -1,0 +1,187 @@
+{
+  "soak_id": "soak_release-v1_1791251770",
+  "profile": "release-v1",
+  "commit": "561420d9465bb0b633c3f6944009ad3d08b589fb",
+  "timestamp_start_utc": "2026-10-06T01:56:10.464711+00:00",
+  "timestamp_end_utc": "2026-10-06T02:22:01.364973+00:00",
+  "target_duration_sec": 86400,
+  "actual_duration_sec": 1550.89,
+  "completed_target": false,
+  "heartbeats_count": 300,
+  "memory_metrics": {
+    "initial_rss_mb": 27.55,
+    "max_rss_mb": 118.23,
+    "final_rss_mb": 26.23,
+    "limit_rss_mb": 512.0,
+    "within_limits": true
+  },
+  "latency_metrics_ms": {
+    "poll_interval_sec": 15,
+    "polls_attempted": 101,
+    "polls_failed": 1,
+    "combined": {
+      "p50": 2247.911,
+      "p95": 2686.444,
+      "p99": 2796.714,
+      "count": 201,
+      "min": 1646.67,
+      "max": 4320.871
+    },
+    "per_venue": {
+      "coinbase": {
+        "p50": 1889.837,
+        "p95": 2044.463,
+        "p99": 2151.424,
+        "count": 101,
+        "min": 1646.67,
+        "max": 4320.871
+      },
+      "kraken": {
+        "p50": 2508.019,
+        "p95": 2740.97,
+        "p99": 2796.714,
+        "count": 100,
+        "min": 2247.911,
+        "max": 2804.781
+      }
+    }
+  },
+  "websocket_stream": {
+    "enabled": true,
+    "kraken": null,
+    "coinbase": null,
+    "errors": []
+  },
+  "errors_count": 0,
+  "errors": [],
+  "sample_count": 300,
+  "sample_data": [
+    {
+      "tick": 1,
+      "elapsed_sec": 0.03,
+      "rss_mb": 28.14,
+      "timestamp_utc": "2026-10-06T01:56:10.497440+00:00"
+    },
+    {
+      "tick": 2,
+      "elapsed_sec": 5.59,
+      "rss_mb": 115.44,
+      "timestamp_utc": "2026-10-06T01:56:16.059734+00:00"
+    },
+    {
+      "tick": 3,
+      "elapsed_sec": 10.6,
+      "rss_mb": 106.23,
+      "timestamp_utc": "2026-10-06T01:56:21.066538+00:00"
+    },
+    {
+      "tick": 4,
+      "elapsed_sec": 15.6,
+      "rss_mb": 102.75,
+      "timestamp_utc": "2026-10-06T01:56:26.069089+00:00"
+    },
+    {
+      "tick": 5,
+      "elapsed_sec": 20.61,
+      "rss_mb": 118.23,
+      "timestamp_utc": "2026-10-06T01:56:31.072299+00:00"
+    },
+    {
+      "tick": 6,
+      "elapsed_sec": 25.61,
+      "rss_mb": 89.16,
+      "timestamp_utc": "2026-10-06T01:56:36.070163+00:00"
+    },
+    {
+      "tick": 7,
+      "elapsed_sec": 30.61,
+      "rss_mb": 88.88,
+      "timestamp_utc": "2026-10-06T01:56:41.071769+00:00"
+    },
+    {
+      "tick": 8,
+      "elapsed_sec": 35.65,
+      "rss_mb": 100.31,
+      "timestamp_utc": "2026-10-06T01:56:46.118656+00:00"
+    },
+    {
+      "tick": 9,
+      "elapsed_sec": 40.62,
+      "rss_mb": 82.59,
+      "timestamp_utc": "2026-10-06T01:56:51.082681+00:00"
+    },
+    {
+      "tick": 10,
+      "elapsed_sec": 45.62,
+      "rss_mb": 45.12,
+      "timestamp_utc": "2026-10-06T01:56:56.084587+00:00"
+    },
+    {
+      "tick": 11,
+      "elapsed_sec": 50.72,
+      "rss_mb": 108.7,
+      "timestamp_utc": "2026-10-06T01:57:01.187340+00:00"
+    },
+    {
+      "tick": 12,
+      "elapsed_sec": 55.73,
+      "rss_mb": 95.64,
+      "timestamp_utc": "2026-10-06T01:57:06.191422+00:00"
+    },
+    {
+      "tick": 13,
+      "elapsed_sec": 60.73,
+      "rss_mb": 30.55,
+      "timestamp_utc": "2026-10-06T01:57:11.190768+00:00"
+    },
+    {
+      "tick": 14,
+      "elapsed_sec": 65.89,
+      "rss_mb": 66.77,
+      "timestamp_utc": "2026-10-06T01:57:16.356950+00:00"
+    },
+    {
+      "tick": 15,
+      "elapsed_sec": 70.89,
+      "rss_mb": 64.19,
+      "timestamp_utc": "2026-10-06T01:57:21.359329+00:00"
+    },
+    {
+      "tick": 16,
+      "elapsed_sec": 75.9,
+      "rss_mb": 24.8,
+      "timestamp_utc": "2026-10-06T01:57:26.368145+00:00"
+    },
+    {
+      "tick": 17,
+      "elapsed_sec": 80.91,
+      "rss_mb": 91.8,
+      "timestamp_utc": "2026-10-06T01:57:31.371715+00:00"
+    },
+    {
+      "tick": 18,
+      "elapsed_sec": 85.91,
+      "rss_mb": 89.31,
+      "timestamp_utc": "2026-10-06T01:57:36.373578+00:00"
+    },
+    {
+      "tick": 19,
+      "elapsed_sec": 90.91,
+      "rss_mb": 89.28,
+      "timestamp_utc": "2026-10-06T01:57:41.378427+00:00"
+    },
+    {
+      "tick": 20,
+      "elapsed_sec": 95.98,
+      "rss_mb": 97.3,
+      "timestamp_utc": "2026-10-06T01:57:46.442048+00:00"
+    }
+  ],
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python": "3.12.15",
+    "os_release": "27.0"
+  },
+  "passed": true
+}

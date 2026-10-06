@@ -1,0 +1,5 @@
+Soak report written to: .agent/evidence/soak24h/soak_report.json
+Total Duration: 1550.9s (target 86400s)
+Max RSS: 118.2 MB (Limit: 512.0 MB)
+Latency p50/p95/p99 ms: 2247.911 / 2686.444 / 2796.714
+Status: PASSED
