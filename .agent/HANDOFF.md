@@ -8,7 +8,94 @@
 **Branch:** `codex/v1-refactor`  
 **Candidate Commit:** `a516ef8d179110d84121454a7d975abf24f974e2`  
 **Tree Hash:** `c311f4c3f3fec78178e1c3615e8b6d84e75503ef`  
-**Status:** `PUBLIC_RELEASE_READY` (Phase 2 advanced engineering complete; Gen 12 dual-arch release packaging complete)
+**Status:** `IMPLEMENTED` — every acceptance row proven except R12's formal 24-hour window (running now; see Gen 13)
+
+---
+
+## 0. Generation 13 — Real desktop application (Tauri shell + engine-backed sidecar)
+
+The Gen 12 completion audit exposed the largest open gap in the project: the
+installed `.app` was **not a working application**. Its `CFBundleExecutable`
+was a shell script exec'ing a sidecar that (a) had six stub actions, (b) died
+at launch from stdin EOF, and (c) displayed no UI — while the Tauri scaffold
+was an untouched template and the whole frontend api layer returned hardcoded
+fixtures even inside Tauri. Sections 1, 3, 4, and 8 of the guide were
+therefore not yet met by the shipped artifact.
+
+### 0.1 What was built in Gen 13
+
+- **`src/ohmycrypto/services/monitor.py` — MonitoringService**: the
+  application's continuous monitoring loop (bounded 5 s REST cycles over both
+  public venues), feeding `OpportunityService.evaluate`, SQLite persistence
+  (DecisionEvents) and the diagnostics incident registry; start/pause/resume/
+  stop lifecycle; configuration persisted in settings and restored on restart
+  (Section 5.2); cross-thread SQLite access serialized with a dedicated lock
+  and network I/O deliberately performed outside it.
+- **Sidecar with real engine actions**: `get_status`, `start_monitor`,
+  `pause_monitor`, `resume_monitor`, `stop_monitor`, `configure`,
+  `get_overview`, `get_opportunities`, `get_incidents`, `compare_costs`,
+  `replay_event`, `export_incident_bundle`, `shutdown` — dispatched to the
+  same services layer as the CLI. Protocol, decimal-string numbers, and
+  owned-child lifecycle unchanged.
+- **Tauri 2 shell (`desktop/src-tauri`)**: spawns the packaged sidecar as an
+  owned child, proxies versioned JSON Lines over stdin/stdout, forwards
+  sidecar events to the webview, terminates the child on exit, serves the
+  embedded frontend, self-only CSP, stable identifier
+  `org.ohmycrypto.desktop`, version 1.0.0. Builds for arm64 (native) and
+  x86_64 (rustup toolchain cross-compile — Homebrew rustc lacks the x86_64
+  std; `RUSTC` must point at the rustup toolchain, encoded in release.py).
+- **Frontend real IPC**: `desktop/src/ipc.ts` invokes the sidecar through the
+  shell; the fixture dataset remains only as the explicitly labeled fallback
+  when the sidecar is unreachable (browser/dev mode).
+- **release.py**: bundles the Tauri shell binary as `CFBundleExecutable`
+  (no more launcher script).
+
+### 0.2 Native journey evidence (installed bundle, real user data)
+
+| Journey step | Result |
+|---|---|
+| Cold launch `open OhMyCrypto.app` | process alive, sidecar child spawned, window "OhMyCrypto" present (System Events), screenshot |
+| Monitoring journey via installed sidecar | live Coinbase+Kraken cycle evaluated and persisted DecisionEvents |
+| Config persistence across restart | fresh process reads back persisted budget/symbol |
+| Relaunch after quit | window present, UI loads persisted status; clean quit leaves zero sidecar processes |
+| Single instance | second `open` activates the running instance; engine.lock rejects a second writer |
+| Owned-child exit | app quit → sidecar logs EOF exit, zero leftover processes |
+
+Evidence: `.agent/evidence/t17_real_desktop_shell.json`,
+`.agent/evidence/journey/*.png`.
+
+### 0.3 Environment discoveries (Gen 13)
+
+- **iCloud File Provider sets `UF_HIDDEN` on files under the repo**, and
+  CPython 3.12.15 skips hidden-flagged `.pth` files during site
+  initialization, which silently broke the editable installs (12,009 files in
+  `.venv` were flagged; re-flagged within seconds after clearing). Fix: both
+  venvs physically moved to `~/.local/share/ohmycrypto-venvs/{arm64,x86_64}`
+  with repo symlinks `.venv`/`.venv-x86_64` so all documented commands keep
+  working outside the sync scope.
+- **pip on the universal2 interpreter installs arm64 wheels by default**
+  (sysconfig reports `macosx-10.9-universal2` regardless of slice) — the
+  x86_64 venv must be populated via `--platform macosx_11_0_x86_64
+  --only-binary=:all: --target` overlay to get x86_64 binaries.
+
+### 0.4 Gates bound to candidate a8b868a
+
+- offline: PASSED (pytest 57/57 incl. 4 new MonitoringService tests, min 57;
+  typecheck; vitest 7; Playwright 8; kernel invariant)
+- native: PASSED (structure + `codesign --verify --strict` + real Tauri
+  bundle sidecar ping)
+- live: PASSED (60 s, both venues)
+- release: aggregated 6-artifact manifest verified
+
+### 0.5 Open item — R12 formal window
+
+The formal **86400 s soak (T18)** runs as background job `soak24h_gen13`
+(`caffeinate -is .venv/bin/python scripts/soak.py --duration 86400 --profile
+release-v1 --output .agent/evidence/soak24h`) bound to a8b868a. The prior
+R12 evidence was a 900 s run — honest record: R12 is `in_progress` in
+EXECUTION_STATE and flips to proven only on the final bound report. External
+prerequisites unchanged: Developer ID signing/notarization (PR03), remote
+push/PR/publication authorization (PR04).
 
 ---
 

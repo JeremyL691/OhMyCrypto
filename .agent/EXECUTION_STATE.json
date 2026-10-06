@@ -4,21 +4,23 @@
   "spec_version": "1.0.0",
   "spec_hash": "5b81761df2e2468c31a3c061f9997d8941fa5ac8aec8b53eb43348a2cc2bb190",
   "run_id": "a918f8f0-15cb-42ee-8959-15dcf3a59821",
-  "generation": 12,
+  "generation": 13,
   "candidate": {
-    "commit": "52f8f0d05b23e49f3080978a94aa59a16fd2f990",
+    "commit": "a8b868a8553f7a98ecb7375e31e4771e1813db3a",
     "tree_hash": "c311f4c3f3fec78178e1c3615e8b6d84e75503ef",
-    "release_id": "release_1.0.0_gen12_dualarch",
+    "release_id": "release_1.0.0_gen13_real_desktop",
     "manifest_path": "release/candidate/manifest.json",
     "checksums_path": "release/candidate/checksums.txt",
-    "packaging": "PyInstaller onefile sidecars (arm64 + x86_64), staging-signed with codesign --verify --strict under macOS 27 rules",
+    "packaging": "Tauri 2 shell (CFBundleExecutable) + PyInstaller onefile engine sidecar, staging-signed with codesign --verify --strict, arm64 + x86_64",
     "phase_2_additions": {
       "websocket_streams": true,
       "e2e_user_journeys": true,
       "dual_arch_cicd": true,
       "soak_latency_quantiles": true,
       "dual_arch_release_artifacts": true,
-      "python_tests": 53,
+      "real_desktop_shell": true,
+      "monitoring_service": true,
+      "python_tests": 57,
       "ui_unit_tests": 7,
       "e2e_tests": 8
     }
@@ -186,6 +188,25 @@
         "release/candidate/manifest.json",
         ".agent/evidence/native/native_report.json"
       ]
+    },
+    {
+      "id": "T17",
+      "title": "Real desktop application: Tauri shell wiring, engine-backed sidecar actions, MonitoringService, native journey",
+      "dependencies": ["T08", "T16"],
+      "status": "done",
+      "evidence_references": [
+        ".agent/evidence/t17_real_desktop_shell.json",
+        ".agent/evidence/journey/02_relaunch_persisted.png",
+        "src/ohmycrypto/services/monitor.py",
+        "desktop/src-tauri/src/lib.rs"
+      ]
+    },
+    {
+      "id": "T18",
+      "title": "Formal 24-hour continuous soak (R12, Section 12.1) on release-v1 profile",
+      "dependencies": ["T17"],
+      "status": "in_progress",
+      "evidence_references": [".agent/evidence/soak24h/"]
     }
   ],
   "requirements": {
@@ -241,7 +262,10 @@
       "title": "Complete consumer UI",
       "status": "proven",
       "minimum_proof": "All destinations/states/themes/widths, accessibility/dials/before-after; installed first-launch configuration/change/original replay/pause/restart journey",
-      "evidence_references": [".agent/evidence/t08_consumer_ui.json"]
+      "evidence_references": [
+        ".agent/evidence/t08_consumer_ui.json",
+        ".agent/evidence/t17_real_desktop_shell.json"
+      ]
     },
     "R09": {
       "title": "Native lifecycle/recovery",
@@ -249,6 +273,7 @@
       "minimum_proof": "Installed start/quit/single-instance; sidecar/feed/disk/notification errors; restart/pause/sleep-wake",
       "evidence_references": [
         ".agent/evidence/t09_native_integration.json",
+        ".agent/evidence/t17_real_desktop_shell.json",
         ".agent/evidence/native/native_report.json"
       ]
     },
@@ -274,9 +299,14 @@
     },
     "R12": {
       "title": "Continuous-run reliability",
-      "status": "proven",
+      "status": "in_progress",
       "minimum_proof": "One uninterrupted 24-hour awake-host live profile, final bound report, resources/coverage and separate induced-fault recovery",
-      "evidence_references": [".agent/evidence/soak24/soak_report.json"]
+      "evidence_references": [
+        ".agent/evidence/soak24/soak_report.json",
+        ".agent/evidence/soak24h/",
+        "task:T18"
+      ],
+      "note": "Prior evidence covered a 900 s run; the formal 86400 s window (T18) started 2026-10-06 bound to candidate a8b868a and is registered as an active job. R12 flips to proven only on its final bound report."
     },
     "R13": {
       "title": "Installable compatibility",
@@ -362,7 +392,19 @@
       "detail": "Local candidate package and git tree frozen and verified; remote push awaits explicit owner publish command."
     }
   ],
-  "active_jobs": [],
+  "active_jobs": [
+    {
+      "job_id": "soak24h_gen13",
+      "task_id": "T18",
+      "logical_invocation": "soak_86400_release_v1_a8b868a",
+      "command": "caffeinate -is .venv/bin/python scripts/soak.py --duration 86400 --profile release-v1 --output .agent/evidence/soak24h",
+      "candidate_commit": "a8b868a8553f7a98ecb7375e31e4771e1813db3a",
+      "state": "running",
+      "started_utc": "2026-10-06T03:05:00Z",
+      "output": ".agent/evidence/soak24h/",
+      "liveness": "background task handle owned by the lead session; on takeover inspect .agent/evidence/soak24h/soak_report.json and running processes before any restart"
+    }
+  ],
   "retry_lineage": [],
   "evidence_index": [
     ".agent/evidence/baseline_manifest.json",
@@ -384,7 +426,9 @@
     ".agent/evidence/t12_websocket_streams.json",
     ".agent/evidence/t13_e2e_user_journeys.json",
     ".agent/evidence/t14_cicd_pipelines.json",
-    ".agent/evidence/t16_dualarch_release.json"
+    ".agent/evidence/t16_dualarch_release.json",
+    ".agent/evidence/t17_real_desktop_shell.json"
   ],
-  "completion": "PUBLIC_RELEASE_READY"
+  "completion": "IMPLEMENTED",
+  "completion_note": "All acceptance rows R01-R11, R13-R19 proven with candidate-bound evidence; R12's formal 86400 s window (T18) is running as active job soak24h_gen13 bound to a8b868a. On its final bound report R12 flips to proven and the state becomes PUBLIC_RELEASE_READY. Public upload remains separately authorized-only."
 }
