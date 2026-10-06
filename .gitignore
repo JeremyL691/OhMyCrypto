@@ -1,5 +1,6 @@
 venv/
-.venv/
+.venv
+.venv-x86_64
 .venv-*/
 build/
 node_modules/
