@@ -1,9 +1,9 @@
 {
-  "verification_id": "verify_native_1791257697",
+  "verification_id": "verify_native_1791258094",
   "gate": "native",
-  "commit": "bcb7531307410d7e217e09c6a058f39983010fa5",
-  "timestamp_start_utc": "2026-10-06T03:34:57.484229+00:00",
-  "timestamp_end_utc": "2026-10-06T03:35:06.270257+00:00",
+  "commit": "11db10ccb6f7060ed1793600b24e45fa22cdf182",
+  "timestamp_start_utc": "2026-10-06T03:41:34.188750+00:00",
+  "timestamp_end_utc": "2026-10-06T03:41:42.737882+00:00",
   "platform": {
     "system": "Darwin",
     "machine": "arm64",
@@ -30,7 +30,7 @@
       "path": "release/candidate/OhMyCrypto.app/Contents/MacOS/sidecar/ohmycrypto-sidecar",
       "passed": true,
       "exit_code": 0,
-      "duration_ms": 8680.0,
+      "duration_ms": 8403.9,
       "response": {
         "id": "ping_1",
         "protocol_version": "1.0.0",
@@ -38,11 +38,11 @@
         "payload": {
           "pong": true,
           "version": "1.0.0",
-          "pid": 25677,
-          "server_time_ms": 1791257706143
+          "pid": 29921,
+          "server_time_ms": 1791258102617
         }
       },
-      "stderr_tail": "[sidecar] Started OhMyCrypto sidecar (PID=25677)\n[sidecar] Stdin closed (EOF). Parent terminated. Exiting.\n[sidecar] Sidecar cleanly exited."
+      "stderr_tail": "[sidecar] Started OhMyCrypto sidecar (PID=29921)\n[sidecar] Stdin closed (EOF). Parent terminated. Exiting.\n[sidecar] Sidecar cleanly exited."
     }
   ]
 }

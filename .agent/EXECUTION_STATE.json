@@ -4,18 +4,18 @@
   "spec_version": "1.1.0",
   "spec_hash": "b1e38e5b66747d70718cd3f8d977865fd401fcbece16ae9a5a4d34e002c5e6b7",
   "run_id": "a918f8f0-15cb-42ee-8959-15dcf3a59821",
-  "generation": 16,
+  "generation": 17,
   "candidate": {
-    "commit": "bcb7531307410d7e217e09c6a058f39983010fa5",
+    "commit": "11db10ccb6f7060ed1793600b24e45fa22cdf182",
     "tree_hash": "812b2c716a2bb6525bd6a6e5fe7bd9c4e31ec934",
     "config_hash": "5cf5d1e2241d37e0e6dd53fb85f44cb76ee35e3d4bc4434d538aa0bd2c9163e4",
-    "release_id": "release_1.0.0_1791257689",
+    "release_id": "release_1.0.0_1791258086",
     "manifest_path": "release/candidate/manifest.json",
     "checksums_path": "release/candidate/checksums.txt",
     "status": "frozen_candidate_prepared",
     "review_baseline_commit": "561420d9465bb0b633c3f6944009ad3d08b589fb",
     "historical_artifact_candidate": "a8b868a8553f7a98ecb7375e31e4771e1813db3a",
-    "note": "Repairs complete for F01-F08; dual-architecture release packages built and verified."
+    "note": "Repairs complete for F01-F08; dual-architecture release packages built and verified bound to commit 11db10c."
   },
   "decisions": {
     "channel": "github_macos",
@@ -586,7 +586,7 @@
   ],
   "completion": "PUBLIC_RELEASE_READY",
   "completion_note": "Remediation under specification 1.1.0 complete: N00-N08 all done, F01-F08 defect regressions fixed and verified, bounded operational scenarios (R12) passed with soak24h cancelled per owner, dual-architecture DMG artifacts and GPL source archive built, signed and verified. Gate checks (offline, live, native, release manifest) all passed. Awaiting remote distribution authorization/credentials for final publication.",
-  "updated_at_utc": "2026-10-06T03:37:07.946042+00:00",
+  "updated_at_utc": "2026-10-06T03:42:38.797014+00:00",
   "scope_changes": [
     {
       "id": "owner_revision_20261005_no_long_soak",

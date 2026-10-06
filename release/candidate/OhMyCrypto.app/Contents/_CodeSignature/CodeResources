@@ -4,9 +4,9 @@
 <dict>
 	<key>files</key>
 	<dict>
-		<key>Resources/dist/assets/index-CgKRfIoA.js</key>
+		<key>Resources/dist/assets/index-CFgW4EXt.js</key>
 		<data>
-		Qz1N+SZHLSO+JgJlPIz/tZr7Hfs=
+		4sA7wf+6UXjx5iWcAdnsJX58Rds=
 		</data>
 		<key>Resources/dist/assets/index-_8ho_WDW.css</key>
 		<data>
@@ -14,7 +14,7 @@
 		</data>
 		<key>Resources/dist/index.html</key>
 		<data>
-		YNCauXl3Px4MES9kMKNRZnF2GDs=
+		k404TcO9I7Ib3/FJFTsB84T9IKM=
 		</data>
 	</dict>
 	<key>files2</key>
@@ -23,16 +23,25 @@
 		<dict>
 			<key>cdhash</key>
 			<data>
-			5zErf0Ka7iF2UXXl7ofkcA3AIyU=
+			+dNWEUKiI0gZNUJnUqqY2w6ajAY=
 			</data>
 			<key>requirement</key>
-			<string>cdhash H"e7312b7f429aee21765175e5ee87e4700dc02325"</string>
+			<string>cdhash H"f9d3561142a223481935426752aa98db0e9a8c06"</string>
 		</dict>
-		<key>Resources/dist/assets/index-CgKRfIoA.js</key>
+		<key>MacOS/sidecar/ohmycrypto-sidecar-x86_64</key>
+		<dict>
+			<key>cdhash</key>
+			<data>
+			+gAGGqKASOBfj1KyuJAGlcpdM/w=
+			</data>
+			<key>requirement</key>
+			<string>cdhash H"fa00061aa28048e05f8f52b2b8900695ca5d33fc"</string>
+		</dict>
+		<key>Resources/dist/assets/index-CFgW4EXt.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			NovqW6zVOVo5YdMnippAWS4D5dq2oRB4zB+6Q2x0nX4=
+			duerWKGB7XwRFp40GghDrDZAN8FlaDFPlvBgaD3sce4=
 			</data>
 		</dict>
 		<key>Resources/dist/assets/index-_8ho_WDW.css</key>
@@ -46,7 +55,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			HbJPgguPiU0dbUM7Yj7/CiMSUHp/1sT9B8ELvdbENJc=
+			dccOSA6zmGydDZ61QUD6Et4NoxVkEAX6bf3xxqGVMN4=
 			</data>
 		</dict>
 	</dict>

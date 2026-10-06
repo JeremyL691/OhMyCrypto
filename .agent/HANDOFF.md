@@ -1,12 +1,12 @@
 # OhMyCrypto Current Completion Handoff
 
-Updated: 2026-10-06T03:37:00Z
+Updated: 2026-10-06T03:42:00Z
 Owner local date: October 5, 2026, America/Los_Angeles
 Specification: 1.1.0
 Specification SHA-256: `b1e38e5b66747d70718cd3f8d977865fd401fcbece16ae9a5a4d34e002c5e6b7`
 Branch: `codex/v1-refactor`
 Review source baseline: `561420d9465bb0b633c3f6944009ad3d08b589fb`
-Current candidate commit: `bcb7531307410d7e217e09c6a058f39983010fa5`
+Current candidate commit: `11db10ccb6f7060ed1793600b24e45fa22cdf182`
 Current phase: `PUBLIC_RELEASE_READY` - all independent development, defect repairs, bounded scenario validations, and dual-architecture release artifacts completed.
 
 ## Owner Change and Soak Cancellation Guard
@@ -62,12 +62,12 @@ The owner explicitly cancelled the 24-hour soak task (T18 / `soak24h_gen13`). In
 
 ## Release Candidate Artifacts
 
-- **Manifest:** `release/candidate/manifest.json` (`release_1.0.0_1791257689`)
+- **Manifest:** `release/candidate/manifest.json` (`release_1.0.0_1791258086`)
 - **Checksums:** `release/candidate/checksums.txt`
 - **Artifacts:**
-  - `OhMyCrypto-1.0.0-arm64.dmg` (SHA-256: `a120156b397d532bebf0cbcf326b2b5ebf3fe93d0d575c3f8796841b8042fa25`, 30,038,891 bytes)
-  - `OhMyCrypto-1.0.0-x86_64.dmg` (SHA-256: `a2fc7a5f14bc6794ce5ef282c04ff2b295c52ae3c38db5d742617f694e99c150`, 31,086,937 bytes)
-  - `OhMyCrypto-1.0.0-source.tar.gz` (SHA-256: `2909e0b191dfb88a91c92a953e5e4e719c808f97eec9cb5584bfb8ee2081d596`, 300,928,005 bytes)
+  - `OhMyCrypto-1.0.0-arm64.dmg` (SHA-256: `8a9f7b48f08c837a601cb0ad72862c9b695e74ac9eeebc5096d48d30f321a78b`, 30,038,691 bytes)
+  - `OhMyCrypto-1.0.0-x86_64.dmg` (SHA-256: `dea0c0a05a59be4ade374a220816ac8c70044f27a76b7f5c945cf44873533645`, 59,941,382 bytes)
+  - `OhMyCrypto-1.0.0-source.tar.gz` (SHA-256: `8228eeed5326c75276ad2037eafb8e9bddfcb091452188414c6221e66fafb07c`, 327,841,209 bytes)
   - `LICENSE` (GPL-3.0-only)
   - `NOTICES.md`
   - `README.md`
@@ -76,4 +76,4 @@ The owner explicitly cancelled the 24-hour soak task (T18 / `soak24h_gen13`). In
 
 All local and independent engineering work is finished. The remaining prerequisites are purely external to the local agent environment:
 1. **Apple Developer ID & Notarization Credentials (PR03):** Local ad-hoc codesign is strictly verified (`codesign --verify --strict` exits 0). Production Apple notarization and stapling require external Apple Developer account secrets (`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`).
-2. **Remote GitHub Repository Write Authorization (PR04):** Local candidate branch `codex/v1-refactor` is frozen and packaged. Pushing the candidate branch or creating a release tag/draft PR requires owner remote authorization.
+2. **Remote GitHub Release Publishing Authorization (PR04):** The local branch `codex/v1-refactor` is frozen with the verified candidate. Pushing the candidate branch or creating a release tag/draft PR requires owner remote authorization.
