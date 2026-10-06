@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -48,6 +49,152 @@ def get_git_commit() -> str:
         return res.stdout.strip()
     except Exception:
         return "unknown"
+
+
+def gate_env() -> dict[str, str]:
+    """Environment for release subprocesses.
+
+    Inherited PYTHONPATH entries can shadow the project environment with wheels
+    built for a different interpreter, which silently breaks builds.
+    """
+    return {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+
+
+def is_macho(path: Path) -> bool:
+    """Return True when the file is a Mach-O executable or library."""
+    try:
+        res = subprocess.run(
+            ["file", "-b", str(path)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except Exception:
+        return False
+    return "Mach-O" in res.stdout
+
+
+def detect_macho_arch(binary: Path) -> str | None:
+    """Return the Mach-O architecture of a binary, or None if not determinable.
+
+    A universal binary reports multiple architectures; this returns the set of
+    architectures present so a mismatch can be caught before packaging.
+    """
+    try:
+        res = subprocess.run(
+            ["file", "-b", str(binary)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except Exception:
+        return None
+    out = res.stdout
+    if "arm64" in out and "x86_64" in out:
+        return "universal"
+    if "arm64" in out:
+        return "arm64"
+    if "x86_64" in out:
+        return "x86_64"
+    return None
+
+
+def pyinstaller_command(arch: str, sidecar_name: str) -> list[str]:
+    """Build a PyInstaller invocation whose output matches the requested arch.
+
+    PyInstaller produces binaries for the interpreter that runs it. On an arm64
+    host, an x86_64 artifact therefore needs an x86_64 interpreter, selected
+    either directly or through Rosetta 2. Onefile mode is used for both
+    architectures: macOS 27's codesign classifies a onedir bundle's nested
+    stdlib directory (python3.12/), Python.framework and base_library.zip as
+    nested code that cannot be signed or validated, while a onefile sidecar is
+    a single signable Mach-O object.
+    """
+    host_arch = platform.machine()
+    if arch == host_arch:
+        return [
+            sys.executable, "-m", "PyInstaller",
+            "--name", sidecar_name,
+            "--onefile", "--clean", "--noconfirm",
+            "src/ohmycrypto/interfaces/sidecar.py",
+        ]
+
+    # Cross-architecture: prefer a dedicated venv for that architecture.
+    venv_python = REPO_ROOT / f".venv-{arch}" / "bin" / "python"
+    if venv_python.exists():
+        return [
+            "arch", f"-{arch}", str(venv_python), "-m", "PyInstaller",
+            "--name", sidecar_name,
+            "--onefile", "--clean", "--noconfirm",
+            "src/ohmycrypto/interfaces/sidecar.py",
+        ]
+
+    # Fall back to Rosetta on an arm64 host.
+    if host_arch == "arm64" and arch == "x86_64":
+        return [
+            "arch", "-x86_64", sys.executable, "-m", "PyInstaller",
+            "--name", sidecar_name,
+            "--onefile", "--clean", "--noconfirm",
+            "src/ohmycrypto/interfaces/sidecar.py",
+        ]
+
+    sys.exit(
+        f"Cannot build an {arch} sidecar on a {host_arch} host. Provide "
+        f".venv-{arch}/bin/python or run on a native {arch} host."
+    )
+
+
+def run_codesign(args: list[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(["codesign", *args], capture_output=True, text=True)
+
+
+def sign_and_verify_bundle(app_bundle_dir: Path) -> None:
+    """Ad-hoc sign the app bundle and verify it on the current OS.
+
+    The bundle is expected to live outside iCloud File Provider scope (a
+    staging directory): File Provider re-adds `com.apple.fileprovider.fpfs#P`
+    xattrs to synced paths and codesign refuses to sign a bundle carrying
+    "detritus". Every Mach-O object and zip archive inside the bundle is
+    signed individually - macOS 27 classifies PyInstaller archives such as
+    base_library.zip as nested code even when previous macOS releases sealed
+    them as resources - then the outer bundle is signed without --deep and
+    finally validated with `codesign --verify --strict`. A bundle that does
+    not verify on this OS must fail the release, not ship.
+    """
+    if not shutil.which("codesign"):
+        sys.exit("codesign is not available; cannot sign the app bundle")
+
+    subprocess.run(["xattr", "-cr", str(app_bundle_dir)], capture_output=True, check=False)
+    for stray in app_bundle_dir.rglob("._*"):
+        try:
+            stray.unlink()
+        except OSError:
+            pass
+    for stray in app_bundle_dir.rglob("__MACOSX"):
+        if stray.is_dir():
+            shutil.rmtree(stray, ignore_errors=True)
+
+    for candidate in sorted(app_bundle_dir.rglob("*")):
+        if not candidate.is_file():
+            continue
+        if is_macho(candidate) or candidate.suffix == ".zip":
+            res = run_codesign(["-s", "-", "--force", str(candidate)])
+            if res.returncode != 0:
+                sys.exit(
+                    f"codesign failed for nested object {candidate}: "
+                    f"{res.stderr.strip()}"
+                )
+
+    res = run_codesign(["-s", "-", "--force", str(app_bundle_dir)])
+    if res.returncode != 0:
+        sys.exit(f"codesign failed for the app bundle: {res.stderr.strip()}")
+
+    ver = run_codesign(["--verify", "--strict", str(app_bundle_dir)])
+    if ver.returncode != 0:
+        sys.exit(
+            f"Signed bundle does not verify on this OS: {ver.stderr.strip()}"
+        )
+    print("  Signed and verified OhMyCrypto.app (ad-hoc, codesign --verify --strict).")
 
 
 def create_source_archive(output_path: Path, version: str) -> str:
@@ -88,21 +235,44 @@ def prepare_release(
     if res.returncode != 0:
         sys.exit(f"Frontend build failed with exit code {res.returncode}")
 
-    # 2. Package sidecar binary if needed
-    sidecar_bin = REPO_ROOT / "dist" / "ohmycrypto-sidecar" / "ohmycrypto-sidecar"
+    # 2. Package sidecar binary for the REQUESTED ARCHITECTURE.
+    # Guide section 14: "Rust target selection alone cannot convert Python
+    # architecture." A cross-arch DMG must bundle a cross-arch sidecar, so the
+    # binary is built with an architecture-matched interpreter (via `arch`)
+    # and its Mach-O architecture is verified before packaging.
+    sidecar_name = "ohmycrypto-sidecar" if arch == "arm64" else f"ohmycrypto-sidecar-{arch}"
+    sidecar_path = REPO_ROOT / "dist" / sidecar_name
+    # Onefile builds produce a single executable; onedir builds (legacy) a dir.
+    if sidecar_path.is_file():
+        sidecar_bin = sidecar_path
+    else:
+        sidecar_bin = sidecar_path / sidecar_name
+
     if not sidecar_bin.exists():
-        print("  Building sidecar via PyInstaller...")
-        res = subprocess.run([
-            sys.executable, "-m", "PyInstaller",
-            "--name", "ohmycrypto-sidecar",
-            "--onedir", "--clean", "--noconfirm",
-            "src/ohmycrypto/interfaces/sidecar.py",
-        ], cwd=str(REPO_ROOT))
+        print(f"  Building {arch} sidecar via PyInstaller...")
+        res = subprocess.run(
+            pyinstaller_command(arch, sidecar_name),
+            cwd=str(REPO_ROOT),
+            env=gate_env(),
+        )
         if res.returncode != 0:
             sys.exit(f"PyInstaller build failed with exit code {res.returncode}")
 
-    # 3. Create macOS .app bundle directory structure in output
-    app_bundle_dir = output_dir / "OhMyCrypto.app"
+    detected_arch = detect_macho_arch(sidecar_bin)
+    print(f"  Sidecar architecture: {detected_arch} (requested {arch})")
+    if detected_arch is not None and detected_arch not in (arch, "universal"):
+        sys.exit(
+            f"Sidecar architecture mismatch: bundle requests {arch} but sidecar is "
+            f"{detected_arch}. Build it with an architecture-matched interpreter."
+        )
+
+    # 3. Create the .app bundle in a File-Provider-free staging directory.
+    # release/candidate lives under iCloud-synced Desktop storage; codesign
+    # refuses to sign bundles carrying File Provider xattrs, which are
+    # re-added continuously on synced paths. The bundle is built, signed and
+    # verified in staging, then moved into the output directory.
+    staging_root = Path(tempfile.mkdtemp(prefix="ohmycrypto-release-"))
+    app_bundle_dir = staging_root / "OhMyCrypto.app"
     contents_dir = app_bundle_dir / "Contents"
     macos_dir = contents_dir / "MacOS"
     resources_dir = contents_dir / "Resources"
@@ -142,41 +312,36 @@ def prepare_release(
     with open(contents_dir / "Info.plist", "w", encoding="utf-8") as f:
         f.write(info_plist_content)
 
-    # Launcher executable
+    # Launcher executable: must exec the actual sidecar binary name, which is
+    # architecture-tagged for non-default architectures.
     launcher_script = f"""#!/bin/sh
 DIR="$(cd "$(dirname "$0")" && pwd)"
 export OHMYCRYPTO_APP_ROOT="$(dirname "$DIR")"
-exec "$DIR/sidecar/ohmycrypto-sidecar" "$@"
+exec "$DIR/sidecar/{sidecar_name}" "$@"
 """
     launcher_path = macos_dir / "OhMyCrypto"
     with open(launcher_path, "w", encoding="utf-8") as f:
         f.write(launcher_script)
     os.chmod(launcher_path, 0o755)
 
-    # Copy sidecar into MacOS directory
+    # Copy sidecar into MacOS/sidecar (single file for onefile builds).
     sidecar_target_dir = macos_dir / "sidecar"
-    if sidecar_target_dir.exists():
-        shutil.rmtree(sidecar_target_dir)
-    shutil.copytree(sidecar_bin.parent, sidecar_target_dir)
+    sidecar_target_dir.mkdir(parents=True, exist_ok=True)
+    if sidecar_bin.is_file():
+        shutil.copy2(sidecar_bin, sidecar_target_dir / sidecar_name)
+        os.chmod(sidecar_target_dir / sidecar_name, 0o755)
+    else:
+        shutil.copytree(sidecar_bin.parent, sidecar_target_dir, dirs_exist_ok=True)
 
     # Copy frontend assets into Resources
     shutil.copytree(REPO_ROOT / "desktop" / "dist", resources_dir / "dist", dirs_exist_ok=True)
 
-    print("  Created OhMyCrypto.app bundle.")
+    sign_and_verify_bundle(app_bundle_dir)
 
-    # Ad-hoc sign app bundle on macOS
-    if shutil.which("codesign"):
-        subprocess.run(["xattr", "-cr", str(app_bundle_dir)], check=False)
-        cs_res = subprocess.run([
-            "codesign", "-s", "-", "--force", "--deep", str(app_bundle_dir)
-        ], capture_output=True, text=True)
-        if cs_res.returncode == 0:
-            print("  Successfully signed OhMyCrypto.app (ad-hoc Developer/local).")
-        else:
-            print(f"  Warning: codesign exited with {cs_res.returncode}: {cs_res.stderr}")
-
-    # 4. Create DMG if hdiutil is available (macOS)
-    # The DMG is architecture-tagged so arm64 and x86_64 builds never collide.
+    # 4. Create the DMG from the pristine staging bundle. Creating it from a
+    # bundle already moved into the synced output directory would bake File
+    # Provider xattrs into the image and break codesign --verify --strict (and
+    # thus Gatekeeper) for clean users.
     dmg_name = f"OhMyCrypto-{version}-{arch}.dmg"
     dmg_path = output_dir / dmg_name
     if shutil.which("hdiutil"):
@@ -199,7 +364,15 @@ exec "$DIR/sidecar/ohmycrypto-sidecar" "$@"
                 "size_bytes": dmg_path.stat().st_size,
             })
         else:
-            print(f"  Warning: hdiutil exited with {hdi_res.returncode}: {hdi_res.stderr}")
+            sys.exit(f"hdiutil exited with {hdi_res.returncode}: {hdi_res.stderr}")
+
+    # Move the signed bundle into the release output directory.
+    final_bundle = output_dir / "OhMyCrypto.app"
+    if final_bundle.exists():
+        shutil.rmtree(final_bundle)
+    shutil.move(str(app_bundle_dir), str(final_bundle))
+    shutil.rmtree(staging_root, ignore_errors=True)
+    print("  Created OhMyCrypto.app bundle.")
 
     # 5. Create matching corresponding source archive (GPL-3.0 requirement).
     # The archive is identical for every architecture, so a multi-arch release
@@ -302,6 +475,80 @@ def verify_release(manifest_path: Path) -> None:
         sys.exit(0)
 
 
+def aggregate_release(output_dir: Path, version: str, channel: str) -> None:
+    """Combine per-architecture prepare runs into one release manifest.
+
+    R13 requires installable arm64 and x86_64 artifacts; a per-arch prepare
+    run only registers its own DMG, so the final candidate manifest is
+    aggregated here: both architecture DMGs, the GPL corresponding-source
+    archive and the legal/document files, each hashed at its current bytes.
+    Missing required artifacts fail the aggregation.
+    """
+    print(f"=== Aggregating Release Manifest for {version} ===")
+    required = [
+        f"OhMyCrypto-{version}-arm64.dmg",
+        f"OhMyCrypto-{version}-x86_64.dmg",
+        f"OhMyCrypto-{version}-source.tar.gz",
+    ]
+    optional_docs = ["LICENSE", "NOTICES.md", "README.md"]
+
+    artifacts = []
+    for name in required:
+        path = output_dir / name
+        if not path.exists():
+            sys.exit(f"Aggregation failed: required artifact missing: {name}")
+        artifacts.append({
+            "name": name,
+            "type": (
+                "installer_dmg" if name.endswith(".dmg")
+                else "corresponding_source_archive"
+            ),
+            "sha256": compute_sha256(path),
+            "size_bytes": path.stat().st_size,
+        })
+    for name in optional_docs:
+        path = output_dir / name
+        if not path.exists():
+            sys.exit(f"Aggregation failed: required document missing: {name}")
+        artifacts.append({
+            "name": name,
+            "type": "legal_notice",
+            "sha256": compute_sha256(path),
+            "size_bytes": path.stat().st_size,
+        })
+
+    manifest = {
+        "release_id": f"release_{version}_{int(datetime.now(timezone.utc).timestamp())}",
+        "version": version,
+        "channel": channel,
+        "license": "GPL-3.0-only",
+        "ui_dials": {
+            "DESIGN_VARIANCE": 3,
+            "MOTION_INTENSITY": 2,
+            "VISUAL_DENSITY": 8,
+        },
+        "target_os": "macOS 13+",
+        "architecture": "arm64+x86_64",
+        "architectures": ["arm64", "x86_64"],
+        "commit": get_git_commit(),
+        "prepared_at_utc": datetime.now(timezone.utc).isoformat(),
+        "artifacts": artifacts,
+    }
+
+    manifest_path = output_dir / "manifest.json"
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+
+    checksums_path = output_dir / "checksums.txt"
+    with open(checksums_path, "w", encoding="utf-8") as f:
+        for a in artifacts:
+            f.write(f"{a['sha256']}  {a['name']}\n")
+
+    print(f"  Registered {len(artifacts)} artifacts (both architectures).")
+    print(f"Manifest written: {manifest_path}")
+    print(f"Checksums written: {checksums_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="OhMyCrypto Release Engine")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -326,6 +573,14 @@ def main():
     verify_parser = subparsers.add_parser("verify", help="Verify release manifest")
     verify_parser.add_argument("--manifest", type=str, required=True, help="Path to manifest.json")
 
+    agg_parser = subparsers.add_parser(
+        "aggregate",
+        help="Combine per-arch prepare runs into one final manifest",
+    )
+    agg_parser.add_argument("--version", type=str, default="1.0.0", help="Release version")
+    agg_parser.add_argument("--channel", type=str, default="github", help="Distribution channel")
+    agg_parser.add_argument("--output", type=str, required=True, help="Output directory")
+
     args = parser.parse_args()
 
     if args.command == "prepare":
@@ -338,6 +593,8 @@ def main():
         )
     elif args.command == "verify":
         verify_release(Path(args.manifest))
+    elif args.command == "aggregate":
+        aggregate_release(Path(args.output), args.version, args.channel)
 
 
 if __name__ == "__main__":

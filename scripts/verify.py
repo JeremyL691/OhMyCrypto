@@ -18,8 +18,10 @@ import hashlib
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -300,9 +302,19 @@ def verify_native(output_dir: Path, app_path: str | None) -> dict:
     checks = []
 
     if not app_path or not Path(app_path).exists():
-        # Check bundled sidecar binary as alternative
-        sidecar_bin = Path("dist/ohmycrypto-sidecar/ohmycrypto-sidecar")
-        if sidecar_bin.exists():
+        # Check bundled sidecar binary as alternative. PyInstaller onefile
+        # builds place the executable at dist/ohmycrypto-sidecar; onedir
+        # builds nest it one level deeper.
+        for sidecar_candidate in (
+            Path("dist/ohmycrypto-sidecar"),
+            Path("dist/ohmycrypto-sidecar/ohmycrypto-sidecar"),
+        ):
+            if sidecar_candidate.exists():
+                sidecar_bin = sidecar_candidate
+                break
+        else:
+            sidecar_bin = None
+        if sidecar_bin is not None:
             t0 = time.monotonic()
             proc = subprocess.Popen(
                 [str(sidecar_bin)],
@@ -342,14 +354,92 @@ def verify_native(output_dir: Path, app_path: str | None) -> dict:
             "passed": plist_ok,
         })
 
-        # 2. Codesign verification
-        code, out, err = run_cmd(["codesign", "-dv", "--verbose=4", str(app)])
+        # 2. Codesign verification: display output for the record, but pass/fail
+        # on codesign --verify --strict. -dv alone prints signature metadata
+        # without validating nested code, which macOS 27 requires for archives
+        # such as PyInstaller's base_library.zip. Verification runs on a
+        # cleaned copy: macOS File Provider re-adds xattrs to bundles stored on
+        # iCloud-synced paths, and codesign rejects that "detritus" even though
+        # a clean-user install extracted from the DMG carries no such
+        # metadata. The copy mirrors what the user actually receives.
+        _, out, err = run_cmd(["codesign", "-dv", "--verbose=4", str(app)])
+        verify_dir = None
+        try:
+            verify_dir = Path(tempfile.mkdtemp(prefix="omc-native-verify-"))
+            verify_app = verify_dir / app.name
+            shutil.copytree(app, verify_app, symlinks=True)
+            subprocess.run(
+                ["xattr", "-cr", str(verify_app)], capture_output=True, check=False
+            )
+            vcode, vout, verr = run_cmd(["codesign", "--verify", "--strict", str(verify_app)])
+        finally:
+            if verify_dir is not None:
+                shutil.rmtree(verify_dir, ignore_errors=True)
         checks.append({
             "check": "codesign_verification",
-            "passed": code == 0,
-            "exit_code": code,
+            "passed": vcode == 0,
+            "exit_code": vcode,
             "output": (err + out).strip(),
+            "verify_output": (verr + vout).strip(),
         })
+
+        # 3. Bundled sidecar execution: the packaged sidecar binary inside the
+        # installed bundle must answer a protocol ping. This proves the shipped
+        # binary runs on this host (native or Rosetta) without any developer
+        # runtime.
+        sidecar_dir = app / "Contents" / "MacOS" / "sidecar"
+        sidecar_bin = None
+        if sidecar_dir.is_dir():
+            for candidate in sorted(sidecar_dir.iterdir()):
+                if candidate.is_file():
+                    probe = subprocess.run(
+                        ["file", "-b", str(candidate)], capture_output=True, text=True
+                    )
+                    if "Mach-O" in probe.stdout:
+                        sidecar_bin = candidate
+                        break
+        if sidecar_bin is None:
+            checks.append({
+                "check": "bundled_sidecar_execution",
+                "passed": False,
+                "reason": f"No sidecar Mach-O binary found in {sidecar_dir}",
+            })
+        else:
+            try:
+                t0 = time.monotonic()
+                proc = subprocess.Popen(
+                    [str(sidecar_bin)],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                out_line, err_line = proc.communicate(
+                    input=json.dumps({"id": "ping_1", "action": "ping"}) + "\n",
+                    timeout=10,
+                )
+                status_obj = json.loads(out_line.strip()) if out_line.strip() else {}
+                sidecar_ok = (
+                    proc.returncode == 0
+                    and status_obj.get("status") == "ok"
+                    and status_obj.get("payload", {}).get("pong") is True
+                )
+                checks.append({
+                    "check": "bundled_sidecar_execution",
+                    "path": str(sidecar_bin),
+                    "passed": sidecar_ok,
+                    "exit_code": proc.returncode,
+                    "duration_ms": round((time.monotonic() - t0) * 1000, 1),
+                    "response": status_obj,
+                    "stderr_tail": err_line.strip()[-200:],
+                })
+            except Exception as exc:  # noqa: BLE001 - report any failure mode
+                checks.append({
+                    "check": "bundled_sidecar_execution",
+                    "path": str(sidecar_bin),
+                    "passed": False,
+                    "reason": str(exc),
+                })
 
     all_passed = all(c.get("passed", False) for c in checks)
     return {

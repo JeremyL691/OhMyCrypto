@@ -8,8 +8,14 @@ import pytest
 
 def test_packaged_sidecar_round_trip_and_quit():
     """Verify the frozen standalone sidecar binary runs, responds, and quits on EOF."""
-    bin_path = os.path.abspath("dist/ohmycrypto-sidecar/ohmycrypto-sidecar")
-    assert os.path.exists(bin_path), f"Packaged binary not found at {bin_path}"
+    # PyInstaller onefile builds produce dist/ohmycrypto-sidecar as a single
+    # executable; onedir builds nest the executable inside a directory.
+    candidates = [
+        os.path.abspath("dist/ohmycrypto-sidecar"),
+        os.path.abspath("dist/ohmycrypto-sidecar/ohmycrypto-sidecar"),
+    ]
+    bin_path = next((c for c in candidates if os.path.exists(c)), None)
+    assert bin_path is not None, f"Packaged binary not found; checked {candidates}"
 
     proc = subprocess.Popen(
         [bin_path],
