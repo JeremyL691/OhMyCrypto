@@ -1,0 +1,62 @@
+{
+  "verification_id": "t17_real_desktop_shell_gen13",
+  "task": "T17",
+  "requirement": ["R08", "R09", "R13"],
+  "title": "Real desktop application: Tauri shell + engine-backed sidecar + native journey on the installed bundle",
+  "commit": "a8b868a8553f7a98ecb7375e31e4771e1813db3a",
+  "timestamp_utc": "2026-10-06T02:55:00Z",
+  "context": {
+    "gap_found": "Gen 1-12 shipped a bundle whose CFBundleExecutable was a shell script exec'ing a sidecar with six stub actions. The Tauri scaffold was an unmodified template (identifier com.tauri.dev, no sidecar management, no IPC commands) and the entire frontend api layer returned hardcoded fixtures even inside Tauri. The installed application therefore displayed no UI and died at launch (sidecar stdin EOF). This violated the guide's Section 1 endpoint ('installable local-first macOS application that launches') and Sections 3/4/8 (five destinations operating through the same kernel via the packaged sidecar).",
+    "fix": "Gen 13 wired the real application: (1) MonitoringService (src/ohmycrypto/services/monitor.py) - continuous bounded monitoring loop over both public venues feeding OpportunityService, storage, and the diagnostics incident registry with start/pause/resume/stop and restart-recovered configuration; (2) the sidecar gained real engine-backed actions (get_status/start_monitor/pause_monitor/resume_monitor/stop_monitor/configure/get_overview/get_opportunities/get_incidents/compare_costs/replay_event/export_incident_bundle/shutdown) dispatched to the same services layer as the CLI; (3) the Tauri 2 shell (desktop/src-tauri) was implemented: spawns the packaged sidecar as an owned child, proxies versioned JSON Lines over stdin/stdout, forwards sidecar events to the webview, kills the child on exit, serves the embedded frontend, CSP restricted to 'self', identifier org.ohmycrypto.desktop; (4) desktop/src/ipc.ts now calls the real sidecar through Tauri IPC and falls back to the explicitly labeled fixture dataset only when the sidecar is unreachable (browser/dev mode)."
+  },
+  "checks": [
+    {
+      "check": "Tauri shell builds for both architectures",
+      "command": "cargo build --release [--target=x86_64-apple-darwin] in desktop/src-tauri",
+      "result": "arm64 and x86_64 Mach-O shell binaries; cross build uses the rustup toolchain (Homebrew rustc lacks x86_64 std)",
+      "passed": true
+    },
+    {
+      "check": "shell owns sidecar child lifecycle",
+      "command": "run shell binary directly, inspect process tree, kill shell",
+      "result": "sidecar spawned from Contents/MacOS/sidecar/; on shell exit sidecar logs 'Stdin closed (EOF). Parent terminated. Exiting.' and exits cleanly",
+      "passed": true
+    },
+    {
+      "check": "installed app cold launch shows a real window",
+      "command": "open release/candidate/OhMyCrypto.app; osascript System Events window query",
+      "result": "process alive; window 'OhMyCrypto' present; screenshot .agent/evidence/journey/01_cold_launch_fullscreen.png",
+      "passed": true
+    },
+    {
+      "check": "installed sidecar serves real data (monitoring journey, real user data dir)",
+      "command": "drive release/candidate/OhMyCrypto.app/Contents/MacOS/sidecar/ohmycrypto-sidecar with configure/start_monitor/stop_monitor/get_status",
+      "result": "monitoring cycle ran against live Coinbase+Kraken books; DecisionEvents persisted in ~/Library/Application Support/OhMyCrypto (2 events across sessions); config persisted (budget 4321.50 read back by a fresh process)",
+      "passed": true
+    },
+    {
+      "check": "relaunch after restart shows persisted configuration",
+      "command": "open app again after quit; screenshot; quit",
+      "result": "window present; UI loads status from sidecar which restores configuration from storage; screenshot .agent/evidence/journey/02_relaunch_persisted.png; quit leaves zero sidecar processes",
+      "passed": true
+    },
+    {
+      "check": "single instance",
+      "command": "open app twice; System Events process query",
+      "result": "LaunchServices activates the existing instance (one process); engine.lock rejects a second sidecar writer (ALREADY_RUNNING)",
+      "passed": true
+    },
+    {
+      "check": "gates bound to new packaging",
+      "command": "verify.py --gate offline / live / native; release.py verify",
+      "result": "all PASSED; native gate now exercises the real Tauri bundle and its sidecar ping; pytest suite 57 (min 57) including 4 new MonitoringService tests",
+      "passed": true
+    }
+  ],
+  "limits": [
+    "Ad-hoc signing only (Developer ID/notarization pending external authorization, PR03).",
+    "Window verification used System Events + full-screen screencapture; no WebDriver-driven native UI automation was run (Tauri WebDriver route not exercised on macOS 27 yet).",
+    "Monitoring cycles in the desktop app use REST snapshots at a bounded 5 s interval; WS streaming remains exercised by the soak harness and live gates."
+  ],
+  "passed": true
+}

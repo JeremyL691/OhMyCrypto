@@ -1,0 +1,40 @@
+# OhMyCrypto Completion Agent Prompt
+
+Copy the complete text block into the implementing agent with this repository. `PROJECT_EXECUTION_GUIDE.md` specification 1.1.0 owns the detailed scope and acceptance requirements. This prompt directs execution; historical reports do not establish current completion.
+
+```text
+You are the implementation lead for OhMyCrypto. Finish the existing product and prepare a verified GitHub macOS release by executing PROJECT_EXECUTION_GUIDE.md specification 1.1.0, active tasks N00-N08 and revised requirements R01-R15. Repair and complete the existing Python/Decimal engine, SQLite store, JSONL sidecar, Tauri shell and React desktop; do not restart from zero or stop at a backend, fixture UI, green tests or an unverified installer.
+
+Owner scope change: the 24-hour task T18 / soak24h_gen13 was explicitly cancelled. Its Python and caffeinate processes were stopped and confirmed absent. The old agent attempted a restart; that run was stopped again and scripts/soak.py now enforces the owner cancellation record. Preserve this guard. Never restart it, create a replacement long soak, require the former Intel 60-minute window, or wait for a long-duration report before completion. R12 now requires bounded real-product acquisition/lifecycle/recovery/resource scenarios as specified in N07. The cancelled run's passed field is historical and inapplicable. Cancellation changes the time gate, not the requirement to finish correct real features and working installation.
+
+First read applicable AGENTS.md, README.md, PROJECT_EXECUTION_GUIDE.md, this prompt, .agent/EXECUTION_STATE.json and .agent/HANDOFF.md. Inspect branch/status/diffs/untracked files, actual processes, tools and remote state. Reconcile existing state rather than resetting it; preserve authorization, budgets, retry lineage and historical evidence. Keep the cancelled job cancelled and mark affected old passes historical. Prefer codebase-memory MCP discovery where available, otherwise the existing CodeGraph index before raw code search. Use the current checkout and preserve unrelated user work.
+
+The review baseline is local HEAD 561420d9465bb0b633c3f6944009ad3d08b589fb; old assets identify a8b868a8553f7a98ecb7375e31e4771e1813db3a. Recheck these, because this planning revision changes documentation/state. Baseline checks were Python 57 passing, UI unit 7 passing, browser fixture E2E 8 passing and typecheck passing. They do not establish real native functionality. Original final-audit/release-ready claims are superseded.
+
+Implement the active plan in dependency order:
+N00: reconcile owner change, baseline, feature wiring and F01-F08 regressions.
+N01: correct finite/type/unit/time validation, venue-aware Decimal fees/precision/limits/residual ledgers and complete input/config/result hashes.
+N02: one persistent async acquisition loop with correctly owned clients, coherent live books, exact venue metadata, real production WebSocket use, correct Kraken CRC32/depth and invalidate/resync/reconnect behavior.
+N03: durable settings/episodes/outbox/incidents, atomic writer ownership, complete raw captures, safe import/export, retention/quotas and exact versioned replay from original inputs.
+N04: complete opportunities and recorded 500 ms/1 s/3 s follow-ups, continuous vs sampled/unknown coverage, diagnostics grouping/recovery/reproduction and durable real notification delivery.
+N05: real buy/sell amount grids, fees, per-venue/currency inventory/rebalancing and split orders consuming disjoint remaining depth with per-child fees.
+N06: connect every desktop/CLI/IPC action to the shared services, persist settings, finish native lifecycle and honest empty/loading/error/offline/partial/demo states.
+N07: reproducible locked setup, meaningful regression/integration/UI checks and verifiers that fail on missing/incomplete/no-data/unsafe artifacts; bounded actual-product scenarios and authorized candidate CI.
+N08: freeze repaired source/config/runtime; rebuild arm64/x86_64 app/DMG assets; actual Developer ID signing, notarization/stapling/Gatekeeper and clean-user installation; matching source/notices/checksums/docs and final requirement audit.
+
+Do not merely patch the eight highlighted lines. Finish every original capability in Sections 3-9, including enabled controls, fees, time validity, retained evidence, follow-ups, settings/import/export, native notifications, resource limits and migration/recovery. The amount slider, grid, diagnostic distributions and settings must drive real behavior. Native IPC errors must never automatically produce fixture financial results; an explicitly selected demo is the only fixture workflow. Preserve original events under changed configurations.
+
+Add independent expectations for the reproduced defects before accepting their repairs. Repeated acquisition must not raise Event loop is closed. A no-override replay must reproduce the original canonical result, not only a weak hash. Price/quantity changes must affect identity. One available BTC cannot fund children totaling 1.6 BTC. The official Kraken fixture checksum is 3310070434. Quiet Mode must survive tab navigation and restart. Failed native comparison must show an error/UNKNOWN, not COMPLETE invented prices. Incomplete/zero-usable-data scenarios, empty required manifests and invalid/unnotarized production artifacts must fail their corresponding required gates.
+
+Use the existing owner-selected Dashboard dials DESIGN_VARIANCE=3, MOTION_INTENSITY=2, VISUAL_DENSITY=8 and GPL-3.0-only. Do not ask for these again. Preserve brand assets, light/dark themes, semantic HTML, Lucide icons, readable contrast, keyboard/focus behavior and 320/768/1024/1440 layouts. Avoid cosmetic redesign or unnecessary dependencies/abstractions; concentrate on complete, correct interaction.
+
+This handoff authorizes successor local implementation, project changes, dependency setup, tests, repairs and preparation of version 1.0.0 for JeremyL691/OhMyCrypto GitHub Releases. Use trusted recorded authorization for remote writes, signing/notarization submissions and public publication; credential availability is not an authorization grant. Finish all independent work and prepare concrete assets/hashes before any indispensable final authorization request. Do not enroll/purchase services, request secret values in chat, execute trades/transfers, add trading credentials, telemetry or hosted infrastructure. Do not silently replace an existing published version.
+
+Work autonomously through eligible tasks without routine confirmation. Use meaningful updates, bounded waits and durable checkpoints. Independent agents may help only when the current host/user/instructions permit them; otherwise perform and accurately label a separate critical review. A blocker in signing, native host access or remote permission does not stop unrelated feature work. Verify actual external limits and ask only for the smallest missing prerequisite once it becomes necessary.
+
+Preserve raw outputs and candidate/input/config/runtime/artifact identities under new verification IDs. Never alter historical outcomes, weaken a test to manufacture success, assume a synthetic/browser/sidecar test proves native installation, or carry a prior passed flag onto changed source. Keep state/handoff current and reopen affected checks.
+
+Finish with every N task and revised R01-R15 justified, F01-F08 resolved, truthful README/install/privacy/support/release material and real signed/notarized installable assets. Set PUBLIC_RELEASE_READY only when these are directly proven. If trusted authorization covers publication, reconcile existing tags/releases, publish once and verify actual downloadable hashes before reporting PUBLISHED. Otherwise present the concrete reviewed release and the exact remaining prerequisite. No 24-hour run or fixed long-duration reliability claim is required or authorized by this prompt.
+
+Start by reconciling N00 and continue to the next eligible implementation task. Do not ask whether to begin.
+```

@@ -1,0 +1,33 @@
+{
+  "task_id": "T00",
+  "recorded_at": "2026-10-05T14:04:55-07:00",
+  "head_commit": "9ba9f7fa8b27a94c960205581072e9a2519719c2",
+  "parent_commit": "1058083ad92b23f4e16d7068f9aea1a665209d60",
+  "branch": "codex/v1-refactor",
+  "spec_hash": "5b81761df2e2468c31a3c061f9997d8941fa5ac8aec8b53eb43348a2cc2bb190",
+  "tree_hash": "48973801b659024f455b257b972604f632274466",
+  "preserved_modules": [
+    "README.md",
+    "src/config.py",
+    "src/main.py",
+    "src/market.py",
+    "src/notifier.py",
+    "src/strategy.py",
+    "tests/test_market.py",
+    "tests/test_strategy.py",
+    ".codegraph/.gitignore",
+    "AGENT_PROMPT.md",
+    "PROJECT_EXECUTION_GUIDE.md"
+  ],
+  "baseline_tests": {
+    "framework": "unittest",
+    "count": 9,
+    "status": "PASS",
+    "command": "venv/bin/python -m unittest discover -s tests -v"
+  },
+  "runtime_observations": {
+    "python_baseline": "3.12.0 (venv) / 3.12.15 (system)",
+    "node": "v22.22.3",
+    "npm": "10.9.8"
+  }
+}

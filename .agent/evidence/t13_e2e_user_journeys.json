@@ -1,0 +1,115 @@
+{
+  "task_id": "T13",
+  "title": "Native end-to-end user journey automation",
+  "status": "proven",
+  "generated_at_utc": "2026-10-05T22:42:00Z",
+  "generation": 11,
+  "summary": "Playwright end-to-end suite driving real Chromium against the built frontend, covering the complete user journey from cold start through diagnostics export, plus theme persistence and Quiet Mode suppression.",
+  "implementation": {
+    "test_file": "desktop/tests/e2e.spec.ts",
+    "config": "desktop/playwright.config.ts",
+    "runner": "npx playwright test",
+    "target": "prebuilt desktop/dist served over a local static server on 127.0.0.1:4321",
+    "browser": "Chromium (headless)",
+    "hermetic": true,
+    "note": "No Tauri runtime or venue network access required, so the suite runs on any CI host."
+  },
+  "journeys": [
+    {
+      "name": "cold start",
+      "asserts": [
+        "semantic nav and main landmarks render",
+        "all five destinations present",
+        "offline demo fixture mode explicitly labelled"
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "market data load",
+      "asserts": ["engine status", "active connectors", "engine metrics panels visible"],
+      "result": "pass"
+    },
+    {
+      "name": "depth comparison",
+      "asserts": [
+        "cost comparison view renders",
+        "amount input drives sensitivity grid",
+        "buy and sell sides toggle"
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "deterministic offline replay",
+      "asserts": [
+        "opportunity list shows BTC/USDT fixture",
+        "replay modal opens",
+        "input hash (SHA-256) displayed and matches recorded value 57d6a83e..."
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "diagnostics incident bundle export",
+      "asserts": [
+        "latency distribution p50/p95/p99 column headers visible",
+        "incident registry rendered",
+        "export bundle produces offline reproduction bundle"
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "theme persistence",
+      "asserts": [
+        "theme toggle flips data-theme",
+        "choice survives a full page reload (localStorage persistence)"
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "quiet mode suppression",
+      "asserts": [
+        "audio chime (afplay) enabled before quiet mode",
+        "enabling quiet mode disables and unchecks afplay and say controls",
+        "controls remain visible so suppression is explicit, not hidden",
+        "disabling quiet mode restores interactivity"
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "privacy and licensing notice",
+      "asserts": ["no telemetry upload statement", "GPL-3.0-only attribution"],
+      "result": "pass"
+    }
+  ],
+  "accessibility_defects_found_and_repaired": [
+    {
+      "id": "A11Y-1",
+      "severity": "medium",
+      "description": "Form labels in CostComparisonView had no htmlFor/id association, so inputs were unreachable by accessible name and undrivable by assistive technology. Discovered because getByLabel failed in a real browser.",
+      "fix": "Added id + htmlFor pairs for amount, symbol, and balance inputs",
+      "files": ["desktop/src/components/CostComparisonView.tsx"]
+    },
+    {
+      "id": "A11Y-2",
+      "severity": "medium",
+      "description": "Notification checkboxes in SettingsView lacked id associations and gave no explanation of Quiet Mode behaviour.",
+      "fix": "Added id + htmlFor pairs and an aria-describedby hint for the playback controls",
+      "files": ["desktop/src/components/SettingsView.tsx"]
+    }
+  ],
+  "build_integration": {
+    "vitest_glob": "tests/**/*.test.{ts,tsx}",
+    "playwright_glob": "tests/**/*.spec.ts",
+    "reason": "Disjoint globs prevent each runner from loading the other's fixtures and hooks; overlapping globs previously caused Playwright's beforeAll to execute inside vitest and fail."
+  },
+  "gate_integration": {
+    "check": "desktop_e2e",
+    "enforced_by": "scripts/verify.py --gate offline",
+    "minimum_tests": 8,
+    "behavior": "Builds desktop/dist if absent, then runs the suite; a missing build fails loudly rather than silently skipping"
+  },
+  "results": {
+    "e2e_tests_passed": 8,
+    "ui_unit_tests_passed": 7,
+    "console_errors_detected": 0
+  }
+}

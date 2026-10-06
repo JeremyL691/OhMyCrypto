@@ -1,0 +1,35 @@
+{
+  "verification_id": "verify_live_1791276872",
+  "gate": "live",
+  "commit": "35361dee0fb20d65e3045a007afecdd813ee2cb6",
+  "timestamp_start_utc": "2026-10-06T08:54:32.979753+00:00",
+  "timestamp_end_utc": "2026-10-06T08:54:52.866601+00:00",
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python": "3.12.15"
+  },
+  "passed": true,
+  "duration_sec": 19.45,
+  "requested_duration_sec": 10,
+  "checks": [
+    {
+      "check": "coinbase_spot_l2_acquisitions",
+      "symbol": "BTC/USDT",
+      "requested_acquisitions": 10,
+      "successful_acquisitions": 10,
+      "avg_latency_ms": 335.86,
+      "passed": true,
+      "error": null
+    },
+    {
+      "check": "kraken_spot_l2_acquisitions",
+      "symbol": "BTC/USDT",
+      "requested_acquisitions": 10,
+      "successful_acquisitions": 10,
+      "avg_latency_ms": 1452.94,
+      "passed": true,
+      "error": null
+    }
+  ]
+}

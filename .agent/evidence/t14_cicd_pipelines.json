@@ -1,0 +1,111 @@
+{
+  "task_id": "T14",
+  "title": "Dual-architecture CI/CD pipelines with enforced verification gates",
+  "status": "proven",
+  "generated_at_utc": "2026-10-05T22:44:00Z",
+  "generation": 11,
+  "summary": "GitHub Actions pipelines for continuous integration and dual-architecture macOS release, with scripts/verify.py and scripts/release.py acting as blocking gates.",
+  "workflows": {
+    "ci": {
+      "path": ".github/workflows/ci.yml",
+      "triggers": ["push", "pull_request"],
+      "jobs": {
+        "verify": {
+          "runs_on": "macos-14",
+          "toolchain": {"python": "3.12", "node": "22"},
+          "steps": [
+            "checkout",
+            "install python deps into .venv",
+            "npm ci",
+            "install Playwright chromium",
+            "build desktop frontend",
+            "scripts/verify.py --gate offline (blocking)",
+            "upload evidence artifact"
+          ]
+        },
+        "rust": {
+          "runs_on": "macos-14",
+          "toolchain": {"rust": "1.90"},
+          "steps": ["cargo check --all-targets"]
+        },
+        "soak": {
+          "runs_on": "macos-14",
+          "depends_on": ["verify"],
+          "steps": [
+            "scripts/soak.py --duration 300 --profile ci-fast",
+            "assert max RSS <= 512 MiB and report passed"
+          ]
+        }
+      }
+    },
+    "release": {
+      "path": ".github/workflows/release.yml",
+      "triggers": ["push tags v*", "workflow_dispatch"],
+      "jobs": {
+        "build": {
+          "strategy": "matrix",
+          "matrix": [
+            {"os": "macos-14", "target": "aarch64-apple-darwin", "arch": "arm64"},
+            {"os": "macos-13", "target": "x86_64-apple-darwin", "arch": "x64"}
+          ],
+          "toolchain": {"python": "3.12", "node": "22", "rust": "1.90"},
+          "steps": [
+            "scripts/verify.py --gate offline (blocking, before packaging)",
+            "PyInstaller sidecar build",
+            "tauri build --target <triple>",
+            "codesign (Developer ID when secret present, ad-hoc fallback otherwise)",
+            "scripts/release.py prepare --arch <arch> --skip-source (blocking)",
+            "scripts/release.py verify --manifest (blocking)"
+          ]
+        },
+        "source": {
+          "runs_on": "macos-14",
+          "purpose": "Produce the GPL-3.0-only corresponding source archive once per release from the release commit",
+          "steps": [
+            "git archive to OhMyCrypto-<version>-source.tar.gz",
+            "copy LICENSE, NOTICES.md, README.md"
+          ]
+        },
+        "publish": {
+          "depends_on": ["build", "source"],
+          "steps": [
+            "download all artifacts",
+            "verify every manifest",
+            "assert both arm64 and x86_64 DMGs present",
+            "assert exactly one corresponding source archive",
+            "assert LICENSE and NOTICES.md present",
+            "create draft GitHub Release"
+          ]
+        }
+      }
+    }
+  },
+  "gate_enforcement": {
+    "verify_py": "scripts/verify.py --gate offline is a required step before any packaging; non-zero exit fails the job",
+    "release_py": "scripts/release.py verify --manifest is a required step after artifact assembly; checksum mismatch fails the job",
+    "soak_bound": "CI parses soak_report.json and fails if max_rss_mb exceeds 512 MiB or report.passed is false",
+    "min_counts": {
+      "pytest": 53,
+      "vitest": 7,
+      "playwright_e2e": 8,
+      "rationale": "A silently shrinking suite cannot pass the gate"
+    }
+  },
+  "release_py_changes": [
+    "Added --arch {arm64,x86_64} so DMGs are architecture-tagged and never collide",
+    "Added --skip-source so the architecture-independent source archive is published once instead of per-arch",
+    "Manifest now records the built architecture"
+  ],
+  "license_compliance": {
+    "license": "GPL-3.0-only",
+    "corresponding_source": "OhMyCrypto-<version>-source.tar.gz built from the release commit via git archive",
+    "notices": ["LICENSE", "NOTICES.md"],
+    "checksums": "checksums.txt with SHA-256 per artifact, verified by scripts/release.py verify"
+  },
+  "validation": {
+    "yaml_parsed": true,
+    "cli_contract_verified": true,
+    "prepare_and_verify_executed_locally": true,
+    "note": "Workflows are validated by YAML parse and CLI contract checks; full execution requires GitHub-hosted runners and Apple signing secrets, which remain pending external authorization."
+  }
+}

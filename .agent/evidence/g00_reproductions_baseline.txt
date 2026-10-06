@@ -1,0 +1,443 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /Users/jeremyliu/Desktop/Projects/OhMyCrypto
+configfile: pyproject.toml
+plugins: asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 10 items
+
+tests/unit/test_c01_c29_reproductions.py FFFFFFFFFF                      [100%]
+
+=================================== FAILURES ===================================
+______________________ test_c01_split_fill_serialization _______________________
+
+    def test_c01_split_fill_serialization():
+        """C01: Split child FillResult dataclasses must serialize cleanly in JSON without error."""
+        advisor = CostAdvisorService()
+        symbol = "BTC/USDT"
+        inst = Instrument(symbol=symbol, base="BTC", quote="USDT", venue="coinbase", native_symbol="BTC-USDT")
+        fee = FeeProfile(venue="coinbase", taker_rate=Decimal("0.0025"))
+        book = BookState(
+            venue="coinbase",
+            symbol=symbol,
+            bids=(),
+            asks=(BookLevel(price=Decimal("100.00"), amount=Decimal("10.00")),),
+            snapshot_origin="test",
+            applied_sequence=1,
+            source_time_ms=1000,
+            source_time_meaning="unknown",
+            local_receipt_utc_ms=1000,
+            local_receipt_mono_ns=0,
+        )
+        res = advisor.evaluate_split_order(
+            side="buy",
+            symbol=symbol,
+            allocations=[("coinbase", Decimal("500"))],
+            books={"coinbase": book},
+            fee_profiles={"coinbase": fee},
+            instruments={"coinbase": inst},
+        )
+        # Must serialize via DecimalJSONEncoder without "Object of type FillResult is not JSON serializable"
+>       serialized = json.dumps(res, cls=DecimalJSONEncoder)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/unit/test_c01_c29_reproductions.py:79: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.local/share/uv/python/cpython-3.12.15-macos-aarch64-none/lib/python3.12/json/__init__.py:238: in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+../../../.local/share/uv/python/cpython-3.12.15-macos-aarch64-none/lib/python3.12/json/encoder.py:200: in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.local/share/uv/python/cpython-3.12.15-macos-aarch64-none/lib/python3.12/json/encoder.py:258: in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+src/ohmycrypto/domain/models.py:55: in default
+    return super().default(obj)
+           ^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <ohmycrypto.domain.models.DecimalJSONEncoder object at 0x10af584a0>
+o = FillResult(side='buy', requested_amount=Decimal('500'), acquired_base=Decimal('4.98753117'), quote_spent=Decimal('498...._quote=Decimal('2.0750000E-7'), residual_base=Decimal('0'), levels_consumed=1, is_complete=True, rejection_reason=None)
+
+    def default(self, o):
+        """Implement this method in a subclass such that it returns
+        a serializable object for ``o``, or calls the base implementation
+        (to raise a ``TypeError``).
+    
+        For example, to support arbitrary iterators, you could
+        implement default like this::
+    
+            def default(self, o):
+                try:
+                    iterable = iter(o)
+                except TypeError:
+                    pass
+                else:
+                    return list(iterable)
+                # Let the base class default method raise the TypeError
+                return super().default(o)
+    
+        """
+>       raise TypeError(f'Object of type {o.__class__.__name__} '
+                        f'is not JSON serializable')
+E       TypeError: Object of type FillResult is not JSON serializable
+
+../../../.local/share/uv/python/cpython-3.12.15-macos-aarch64-none/lib/python3.12/json/encoder.py:180: TypeError
+_______________ test_c02_event_ledger_and_hashes_retained_in_ipc _______________
+
+    def test_c02_event_ledger_and_hashes_retained_in_ipc():
+        """C02: Stored real event must expose full fill ledgers and SQL row hashes to IPC without null crash."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = _setup_test_repo(tmpdir)
+            opp_svc = OpportunityService(repo, ArchiveManager(tmpdir))
+    
+            symbol = "BTC/USDT"
+            buy_inst = Instrument(symbol=symbol, base="BTC", quote="USDT", venue="coinbase", native_symbol="BTC-USDT")
+            sell_inst = Instrument(symbol=symbol, base="BTC", quote="USDT", venue="kraken", native_symbol="BTC/USDT")
+            buy_fee = FeeProfile(venue="coinbase", taker_rate=Decimal("0.0025"))
+            sell_fee = FeeProfile(venue="kraken", taker_rate=Decimal("0.0025"))
+    
+            buy_book = BookState(
+                venue="coinbase",
+                symbol=symbol,
+                bids=(),
+                asks=(BookLevel(price=Decimal("80000"), amount=Decimal("1.0")),),
+                snapshot_origin="test",
+                applied_sequence=1,
+                source_time_ms=1000,
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=1000,
+                local_receipt_mono_ns=0,
+            )
+            sell_book = BookState(
+                venue="kraken",
+                symbol=symbol,
+                bids=(BookLevel(price=Decimal("81000"), amount=Decimal("1.0")),),
+                asks=(),
+                snapshot_origin="test",
+                applied_sequence=1,
+                source_time_ms=1000,
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=1000,
+                local_receipt_mono_ns=0,
+            )
+    
+            event = opp_svc.evaluate(
+                symbol=symbol,
+                buy_book=buy_book,
+                sell_book=sell_book,
+                all_in_quote_budget=Decimal("1000"),
+                buy_fee_profile=buy_fee,
+                sell_fee_profile=sell_fee,
+                buy_instrument=buy_inst,
+                sell_instrument=sell_inst,
+            )
+            assert event is not None
+    
+            # Fetch raw row from repository and map through SidecarEngine._event_to_item
+            rows = repo.list_events(limit=1)
+            assert len(rows) == 1
+            item = SidecarEngine._event_to_item(rows[0])
+    
+>           assert item["input_hash"] is not None, "input_hash must not be null"
+E           AssertionError: input_hash must not be null
+E           assert None is not None
+
+tests/unit/test_c01_c29_reproductions.py:142: AssertionError
+___________________ test_c03_replay_preserves_original_fees ____________________
+
+    def test_c03_replay_preserves_original_fees():
+        """C03: Replay without override must preserve original fees (e.g. 0.006 / 0.004) rather than 0.0025."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = _setup_test_repo(tmpdir)
+            archives = ArchiveManager(tmpdir)
+            opp_svc = OpportunityService(repo, archives)
+    
+            symbol = "BTC/USDT"
+            buy_inst = Instrument(symbol=symbol, base="BTC", quote="USDT", venue="coinbase", native_symbol="BTC-USDT")
+            sell_inst = Instrument(symbol=symbol, base="BTC", quote="USDT", venue="kraken", native_symbol="BTC/USDT")
+            # Custom fee rates differing from 0.0025
+            buy_fee = FeeProfile(venue="coinbase", taker_rate=Decimal("0.0060"))
+            sell_fee = FeeProfile(venue="kraken", taker_rate=Decimal("0.0040"))
+    
+            buy_book = BookState(
+                venue="coinbase",
+                symbol=symbol,
+                bids=(),
+                asks=(BookLevel(price=Decimal("100"), amount=Decimal("10")),),
+                snapshot_origin="test",
+                applied_sequence=1,
+                source_time_ms=1000,
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=1000,
+                local_receipt_mono_ns=0,
+            )
+            sell_book = BookState(
+                venue="kraken",
+                symbol=symbol,
+                bids=(BookLevel(price=Decimal("101"), amount=Decimal("10")),),
+                asks=(),
+                snapshot_origin="test",
+                applied_sequence=1,
+                source_time_ms=1000,
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=1000,
+                local_receipt_mono_ns=0,
+            )
+    
+            event = opp_svc.evaluate(
+                symbol=symbol,
+                buy_book=buy_book,
+                sell_book=sell_book,
+                all_in_quote_budget=Decimal("100"),
+                buy_fee_profile=buy_fee,
+                sell_fee_profile=sell_fee,
+                buy_instrument=buy_inst,
+                sell_instrument=sell_inst,
+            )
+            bundle = opp_svc.export_replay_bundle(event.event_id, mode="complete")
+    
+            # Replay without override
+            replay_res = opp_svc.replay_bundle(bundle)
+            assert replay_res["status"] == "REPLAYED"
+>           assert replay_res["is_exact_match"] is True, "Original replay must be an exact match"
+E           AssertionError: Original replay must be an exact match
+E           assert False is True
+
+tests/unit/test_c01_c29_reproductions.py:203: AssertionError
+___________________ test_c04_c05_tampered_manifest_rejected ____________________
+
+    def test_c04_c05_tampered_manifest_rejected():
+        """C04/C05: Tampered acquired_base or buy_fee must NOT be accepted as exact match."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = _setup_test_repo(tmpdir)
+            archives = ArchiveManager(tmpdir)
+            opp_svc = OpportunityService(repo, archives)
+    
+            symbol = "BTC/USDT"
+            buy_inst = Instrument(symbol=symbol, base="BTC", quote="USDT", venue="coinbase", native_symbol="BTC-USDT")
+            sell_inst = Instrument(symbol=symbol, base="BTC", quote="USDT", venue="kraken", native_symbol="BTC/USDT")
+            buy_fee = FeeProfile(venue="coinbase", taker_rate=Decimal("0.0025"))
+            sell_fee = FeeProfile(venue="kraken", taker_rate=Decimal("0.0025"))
+    
+            buy_book = BookState(
+                venue="coinbase",
+                symbol=symbol,
+                bids=(),
+                asks=(BookLevel(price=Decimal("100"), amount=Decimal("10")),),
+                snapshot_origin="test",
+                applied_sequence=1,
+                source_time_ms=1000,
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=1000,
+                local_receipt_mono_ns=0,
+            )
+            sell_book = BookState(
+                venue="kraken",
+                symbol=symbol,
+                bids=(BookLevel(price=Decimal("105"), amount=Decimal("10")),),
+                asks=(),
+                snapshot_origin="test",
+                applied_sequence=1,
+                source_time_ms=1000,
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=1000,
+                local_receipt_mono_ns=0,
+            )
+    
+            event = opp_svc.evaluate(
+                symbol=symbol,
+                buy_book=buy_book,
+                sell_book=sell_book,
+                all_in_quote_budget=Decimal("100"),
+                buy_fee_profile=buy_fee,
+                sell_fee_profile=sell_fee,
+                buy_instrument=buy_inst,
+                sell_instrument=sell_inst,
+            )
+            bundle = opp_svc.export_replay_bundle(event.event_id, mode="complete")
+    
+            # Tamper with the exported bundle
+            bundle["opportunity"]["acquired_base"] = "999999"
+            bundle["opportunity"]["buy_spent"] = "12345"
+    
+            replay_res = opp_svc.replay_bundle(bundle)
+>           assert replay_res["is_exact_match"] is False, "Tampered bundle must not claim is_exact_match: true"
+E           AssertionError: Tampered bundle must not claim is_exact_match: true
+E           assert True is False
+
+tests/unit/test_c01_c29_reproductions.py:262: AssertionError
+_______________________ test_c09_invalid_budget_rejected _______________________
+
+    def test_c09_invalid_budget_rejected():
+        """C09: Non-finite, negative, zero or boolean budgets must be rejected cleanly."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = _setup_test_repo(tmpdir)
+            opp_svc = OpportunityService(repo, ArchiveManager(tmpdir))
+    
+            for bad_budget in [Decimal("0"), Decimal("-10"), Decimal("NaN"), Decimal("Infinity")]:
+                with pytest.raises(ValueError):
+>                   opp_svc.validate_budget(bad_budget)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+E                   AttributeError: 'OpportunityService' object has no attribute 'validate_budget'
+
+tests/unit/test_c01_c29_reproductions.py:273: AttributeError
+____________________ test_c13_diagnostic_timestamp_not_bool ____________________
+
+    def test_c13_diagnostic_timestamp_not_bool():
+        """C13: Diagnostics record_clean_observation must take real UTC ms and not accept bool as timestamp."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = _setup_test_repo(tmpdir)
+            diag = DiagnosticService(repo, ArchiveManager(tmpdir))
+    
+            # Open an incident
+            diag.record_fault(
+                connector="coinbase",
+                channel="rest_l2",
+                fault_class="consecutive_failures",
+                trigger="test fault",
+                evidence={"err": "timeout"},
+            )
+    
+            now_ms = int(time.time() * 1000)
+            # Calling with a boolean should raise TypeError or be validated keyword-only
+>           with pytest.raises((TypeError, ValueError)):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/unit/test_c01_c29_reproductions.py:293: Failed
+__________________ test_c16_cooldown_restored_across_restarts __________________
+
+    def test_c16_cooldown_restored_across_restarts():
+        """C16: Restarting OpportunityService within cooldown interval must not re-alert."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = _setup_test_repo(tmpdir)
+            archives = ArchiveManager(tmpdir)
+    
+            svc1 = OpportunityService(repo, archives)
+            symbol = "BTC/USDT"
+            buy_inst = Instrument(symbol=symbol, base="BTC", quote="USDT", venue="coinbase", native_symbol="BTC-USDT")
+            sell_inst = Instrument(symbol=symbol, base="BTC", quote="USDT", venue="kraken", native_symbol="BTC/USDT")
+            buy_fee = FeeProfile(venue="coinbase", taker_rate=Decimal("0.0025"))
+            sell_fee = FeeProfile(venue="kraken", taker_rate=Decimal("0.0025"))
+    
+            book1 = BookState(
+                venue="coinbase",
+                symbol=symbol,
+                bids=(),
+                asks=(BookLevel(price=Decimal("80000"), amount=Decimal("1.0")),),
+                snapshot_origin="test",
+                applied_sequence=1,
+                source_time_ms=1000,
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=1000,
+                local_receipt_mono_ns=0,
+            )
+            book2 = BookState(
+                venue="kraken",
+                symbol=symbol,
+                bids=(BookLevel(price=Decimal("81000"), amount=Decimal("1.0")),),
+                asks=(),
+                snapshot_origin="test",
+                applied_sequence=1,
+                source_time_ms=1000,
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=1000,
+                local_receipt_mono_ns=0,
+            )
+    
+            evt1 = svc1.evaluate(
+                symbol=symbol,
+                buy_book=book1,
+                sell_book=book2,
+                all_in_quote_budget=Decimal("1000"),
+                buy_fee_profile=buy_fee,
+                sell_fee_profile=sell_fee,
+                buy_instrument=buy_inst,
+                sell_instrument=sell_inst,
+            )
+            assert evt1.notification_state == "alert"
+    
+            # Now simulate process restart: instantiate svc2 with same database
+            svc2 = OpportunityService(repo, archives)
+            evt2 = svc2.evaluate(
+                symbol=symbol,
+                buy_book=book1,
+                sell_book=book2,
+                all_in_quote_budget=Decimal("1000"),
+                buy_fee_profile=buy_fee,
+                sell_fee_profile=sell_fee,
+                buy_instrument=buy_inst,
+                sell_instrument=sell_inst,
+            )
+>           assert evt2.notification_state == "suppressed", "Restart within cooldown interval must suppress re-alert"
+E           AssertionError: Restart within cooldown interval must suppress re-alert
+E           assert 'alert' == 'suppressed'
+E             
+E             - suppressed
+E             + alert
+
+tests/unit/test_c01_c29_reproductions.py:359: AssertionError
+_______ test_c20_grouped_incident_retains_samples_and_negative_reproduce _______
+
+    def test_c20_grouped_incident_retains_samples_and_negative_reproduce():
+        """C20: Grouped incident must persist all samples, and reproduce_incident must fail on empty bundle."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = _setup_test_repo(tmpdir)
+            diag = DiagnosticService(repo, ArchiveManager(tmpdir))
+    
+            # Record two faults for the same connector/channel/fault_class
+            diag.record_fault("kraken", "ws_book", "checksum_mismatch", "bad crc 1", {"crc": 111})
+            diag.record_fault("kraken", "ws_book", "checksum_mismatch", "bad crc 2", {"crc": 222})
+    
+            incidents = repo.list_incidents()
+            assert len(incidents) == 1
+            raw_evidence = json.loads(incidents[0]["raw_evidence_json"])
+>           assert raw_evidence.get("samples_count") == 2, "Grouped incident must record samples_count=2"
+E           AssertionError: Grouped incident must record samples_count=2
+E           assert 1 == 2
+E            +  where 1 = <built-in method get of dict object at 0x10b2c9e00>('samples_count')
+E            +    where <built-in method get of dict object at 0x10b2c9e00> = {'samples_count': 1, 'latest': {'crc': 111}}.get
+
+tests/unit/test_c01_c29_reproductions.py:375: AssertionError
+_________________ test_c21_archive_quota_incoming_reservation __________________
+
+    def test_c21_archive_quota_incoming_reservation():
+        """C21: Writing 114 bytes when quota is 16 bytes must reject before exceeding capacity."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Set quota to 16 bytes
+            arch = ArchiveManager(tmpdir, quota_bytes=16)
+            payload = {"data": "x" * 100}  # Serialized size is > 100 bytes
+            h = arch.write_capture(payload)
+            # Should reject write because incoming payload exceeds quota
+>           assert h == "", "Payload exceeding quota must return empty string (write omitted)"
+E           AssertionError: Payload exceeding quota must return empty string (write omitted)
+E           assert '3cab8b79a83f...d8d0ff06478bc' == ''
+E             
+E             + 3cab8b79a83f294d8c188549832a69be5f563c9a57d2388beafd8d0ff06478bc
+
+tests/unit/test_c01_c29_reproductions.py:396: AssertionError
+___________________________ test_c19_cli_not_stubbed ___________________________
+
+    def test_c19_cli_not_stubbed():
+        """C19: CLI compare and replay must not return pending_storage with exit code 0."""
+        parser = cli.create_parser()
+        # Missing bundle should return non-zero or error, not pending_storage exit 0
+>       with pytest.raises(SystemExit):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SystemExit
+
+tests/unit/test_c01_c29_reproductions.py:404: Failed
+=========================== short test summary info ============================
+FAILED tests/unit/test_c01_c29_reproductions.py::test_c01_split_fill_serialization
+FAILED tests/unit/test_c01_c29_reproductions.py::test_c02_event_ledger_and_hashes_retained_in_ipc
+FAILED tests/unit/test_c01_c29_reproductions.py::test_c03_replay_preserves_original_fees
+FAILED tests/unit/test_c01_c29_reproductions.py::test_c04_c05_tampered_manifest_rejected
+FAILED tests/unit/test_c01_c29_reproductions.py::test_c09_invalid_budget_rejected
+FAILED tests/unit/test_c01_c29_reproductions.py::test_c13_diagnostic_timestamp_not_bool
+FAILED tests/unit/test_c01_c29_reproductions.py::test_c16_cooldown_restored_across_restarts
+FAILED tests/unit/test_c01_c29_reproductions.py::test_c20_grouped_incident_retains_samples_and_negative_reproduce
+FAILED tests/unit/test_c01_c29_reproductions.py::test_c21_archive_quota_incoming_reservation
+FAILED tests/unit/test_c01_c29_reproductions.py::test_c19_cli_not_stubbed - F...
+============================== 10 failed in 0.43s ==============================

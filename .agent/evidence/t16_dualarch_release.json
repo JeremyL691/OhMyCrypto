@@ -1,0 +1,106 @@
+{
+  "verification_id": "t16_dualarch_release_gen12",
+  "task": "T16",
+  "requirement": "R13",
+  "title": "Dual-architecture release packaging (arm64 + x86_64) under macOS 27 codesign rules",
+  "commit": "52f8f0d05b23e49f3080978a94aa59a16fd2f990",
+  "timestamp_utc": "2026-10-06T01:05:00Z",
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "os_version": "macOS 27.0 (Build 26A428)",
+    "python": "3.12.15 (.venv), 3.12.0 universal2 (.venv-x86_64)",
+    "pyinstaller": "6.22.3 (both venvs)"
+  },
+  "context": {
+    "interruption": "Generation 11 work was interrupted mid-way through x86_64 release preparation: an x86_64 DMG had been produced but the onedir PyInstaller build overwrote release/candidate/OhMyCrypto.app with an unsigned framework-layout bundle, the bundle launcher referenced the wrong sidecar name (ohmycrypto-sidecar instead of ohmycrypto-sidecar-x86_64), and the native gate was left failing with 'code object is not signed at all'.",
+    "environment_change_discovered": "macOS 27.0 (Build 26A428) codesign behavior changed relative to the Gen 11 signing environment. Verified empirically on this host: (1) codesign --verify --strict now classifies PyInstaller's base_library.zip as unsigned nested code, invalidating the Gen 11 arm64 bundle signature (reproduced on a fresh git-archive extraction); (2) any directory named python3.12 (even empty, even a symlink) is classified as a malformed nested bundle and cannot be signed or skipped; (3) File Provider (iCloud Desktop sync) re-adds com.apple.fileprovider.fpfs#P xattrs to release/candidate, and codesign rejects bundles carrying such detritus both when signing and when verifying in place."
+  },
+  "solution": {
+    "packaging": "Both architecture sidecars are now built with PyInstaller --onefile (single Mach-O executable, no _internal tree, no Python.framework, no python3.12 directory, no base_library.zip). x86_64 is built with an architecture-matched universal2 interpreter venv (.venv-x86_64, Python 3.12.0, PyInstaller 6.22.3); arm64 uses the project .venv (Python 3.12.15, PyInstaller 6.22.3).",
+    "signing": "Bundles are built in a File-Provider-free staging directory (tempfile.mkdtemp), every Mach-O object and zip archive inside is signed individually, the outer bundle is signed without --deep, and the result must pass codesign --verify --strict or the release fails. The DMG is created from the pristine staging bundle so no File Provider xattrs are baked into the distributed image.",
+    "verification": "scripts/verify.py --gate native now fails on codesign --verify --strict (not just -dv display) and executes the bundled sidecar binary with a protocol ping. Verification runs on a cleaned temp copy to mirror a clean-user install."
+  },
+  "checks": [
+    {
+      "check": "x86_64 sidecar Mach-O architecture",
+      "command": "file dist/ohmycrypto-sidecar-x86_64",
+      "result": "Mach-O 64-bit executable x86_64",
+      "passed": true
+    },
+    {
+      "check": "x86_64 sidecar protocol ping (Rosetta on arm64 host)",
+      "command": "echo '{\"id\":\"x1\",\"action\":\"ping\"}' | dist/ohmycrypto-sidecar-x86_64",
+      "result": "status=ok pong=true (pid 92723)",
+      "passed": true
+    },
+    {
+      "check": "arm64 sidecar Mach-O architecture",
+      "command": "file dist/ohmycrypto-sidecar",
+      "result": "Mach-O 64-bit executable arm64",
+      "passed": true
+    },
+    {
+      "check": "arm64 sidecar protocol ping (native)",
+      "command": "echo '{\"id\":\"t11\",\"action\":\"ping\"}' | dist/ohmycrypto-sidecar",
+      "result": "status=ok pong=true",
+      "passed": true
+    },
+    {
+      "check": "x86_64 app bundle signed and verified in staging",
+      "command": ".venv/bin/python scripts/release.py prepare --arch x86_64 --skip-source",
+      "result": "Signed and verified OhMyCrypto.app (ad-hoc, codesign --verify --strict)",
+      "passed": true
+    },
+    {
+      "check": "arm64 app bundle signed and verified in staging",
+      "command": ".venv/bin/python scripts/release.py prepare --arch arm64",
+      "result": "Signed and verified OhMyCrypto.app (ad-hoc, codesign --verify --strict)",
+      "passed": true
+    },
+    {
+      "check": "native gate on standing arm64 bundle (structure + codesign --verify --strict + bundled sidecar ping)",
+      "command": ".venv/bin/python scripts/verify.py --gate native --app release/candidate/OhMyCrypto.app --output .agent/evidence/native",
+      "result": "PASSED, all 3 checks true",
+      "passed": true
+    },
+    {
+      "check": "arm64 DMG bundle verifies cleanly on mount",
+      "command": "hdiutil attach OhMyCrypto-1.0.0-arm64.dmg && codesign --verify --strict /tmp/omc-dmg-arm/OhMyCrypto.app",
+      "result": "verified, no File Provider detritus inside image",
+      "passed": true
+    },
+    {
+      "check": "x86_64 DMG bundle verifies cleanly on mount",
+      "command": "hdiutil attach OhMyCrypto-1.0.0-x86_64.dmg && codesign --verify --strict /tmp/omc-dmg-x86/OhMyCrypto.app",
+      "result": "verified",
+      "passed": true
+    },
+    {
+      "check": "shipped x86_64 sidecar executes from mounted DMG (Rosetta)",
+      "command": "echo '{\"id\":\"x2\",\"action\":\"ping\"}' | /tmp/omc-dmg-x86/OhMyCrypto.app/Contents/MacOS/sidecar/ohmycrypto-sidecar-x86_64",
+      "result": "status=ok pong=true (pid 96370)",
+      "passed": true
+    },
+    {
+      "check": "aggregate manifest with both architectures",
+      "command": ".venv/bin/python scripts/release.py aggregate --version 1.0.0 --channel github --output release/candidate && .venv/bin/python scripts/release.py verify --manifest release/candidate/manifest.json",
+      "result": "6 artifacts registered (arm64 DMG, x86_64 DMG, source archive, LICENSE, NOTICES.md, README.md); release verify passed",
+      "passed": true
+    }
+  ],
+  "artifacts": {
+    "arm64_dmg": "release/candidate/OhMyCrypto-1.0.0-arm64.dmg",
+    "x86_64_dmg": "release/candidate/OhMyCrypto-1.0.0-x86_64.dmg",
+    "source_archive": "release/candidate/OhMyCrypto-1.0.0-source.tar.gz",
+    "manifest": "release/candidate/manifest.json",
+    "checksums": "release/candidate/checksums.txt",
+    "native_gate_report": ".agent/evidence/native/native_report.json"
+  },
+  "limits": [
+    "Ad-hoc (local) signing only: Developer ID signing and Apple notarization remain pending external authorization (prerequisite PR03).",
+    "x86_64 execution verified under Rosetta 2 on an arm64 host, which is the native-compatible route available here; no physical Intel host was used.",
+    "The standing release/candidate/OhMyCrypto.app is the arm64 build (matching the native host); the x86_64 bundle is distributed inside its DMG."
+  ],
+  "passed": true
+}

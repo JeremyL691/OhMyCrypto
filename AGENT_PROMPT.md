@@ -1,0 +1,53 @@
+# OhMyCrypto Implementation Agent Prompt
+
+Copy the entire text block into the implementing agent in this repository. The authoritative goal/acceptance plan is `PROJECT_EXECUTION_GUIDE.md` specification 1.2.0. This prompt is an execution instruction, not evidence that the product is complete.
+
+```text
+You are the implementation lead for OhMyCrypto in /Users/jeremyliu/Desktop/Projects/OhMyCrypto. Execute PROJECT_EXECUTION_GUIDE.md specification 1.2.0 and finish active goals G00-G12 until the real integrated product and its GitHub macOS distribution are PUBLIC_RELEASE_READY. Complete all three promised capabilities and every required R01-R15/C01-C29/J01-J10/B01-B10 outcome. Continue ordinary authorized local implementation autonomously; do not stop at a plan, backend, mock UI, green old tests, sidecar ping or an unsigned installer.
+
+First read applicable AGENTS.md, README.md, PROJECT_EXECUTION_GUIDE.md, AGENT_PROMPT.md, .agent/EXECUTION_STATE.json, .agent/HANDOFF.md, and .agent/evidence/plan-revision-20261006/release-review.md. Inspect current branch/status/diffs/untracked work, actual job handles/processes, tools and remote state. Prefer codebase-memory MCP for discovery if available; otherwise use the existing CodeGraph index before raw code search. Reconcile state without resetting history/authorization/budgets/retries. Preserve unrelated work and external symlinked development environments.
+
+Review baseline was clean codex/v1-refactor HEAD 35361dee0fb20d65e3045a007afecdd813ee2cb6, with implementation/artifact candidate 11db10ccb6f7060ed1793600b24e45fa22cdf182. This handoff modifies documentation/state after that baseline; recheck actual source. The October 6 audit passed 71 Python tests, 7 UI unit tests, 8 browser fixture E2E tests, typecheck and a fresh frontend build; actual MonitoringService completed 10 REST acquisitions per connector. These scoped successes did not prove WS recovery/native journeys and coexisted with real production defects. Old N00-N08 done/R01-R15 proven/PUBLIC_RELEASE_READY claims are superseded, retained only as historical records. The existing assets must not be published as the repaired release.
+
+Owner cancellation is binding: T18/soak24h_gen13 remains cancelled. Preserve the owner-cancellation JSON, guard and history. Never restart the 24-hour job, create a replacement long soak, require the old Intel 60-minute run, or wait for elapsed time to declare success. Use bounded completed production acquisition/lifecycle/fault/resource scenarios. Counts alone do not prove resource bounds; no long-term reliability claim is authorized.
+
+Start with G00, preserving direct baseline reproductions and an inventory of every UI/CLI action to its schema/service/store/scenario. Introduce fail-closed scenario outcomes and verifier-negative controls before trusting acceptance summaries. Check indispensable signing/native-host/remote/support prerequisites early and continue independent work around external limitations.
+
+Execute the goal dependencies with these actual outcomes:
+G01: versioned validated Python/JSONL/Rust/TypeScript contracts, nested decimal DTOs, correct event hashes/fills, grid/split/replay shapes, atomic full-request/settings validation, honest provenance and bounded errors.
+G02: one owned REST/WS pipeline, actual venue metadata, protocol-aware snapshot/delta/epoch/depth checks, strict Kraken integrity, compatible rebuild/reconnect, coherent timing/liveness and visible gaps.
+G03: independent Decimal economics/conservation with actual or explicitly unknown/overridden fees, limits, inventory and complete input/config/result/version identities.
+G04: durable immutable original settings/books/ledgers/capture history, safe complete/sanitized import/export, exact supported-version original replay, migration/crash recovery and enforced raw/pinned/DB/WAL/retention bounds.
+G05: production 500ms/1s/3s fixed-scenario follow-ups with honest continuous/unknown coverage, restart-restored episodes/cooldown and SQLite outbox with actual packaged delivery/quiet/failure/uncertainty.
+G06: actual fault-to-grouped-persisted-incident-to-recovery-to-export-to-offline-detector workflow, correct UTC times/counts, restored incidents and negative-controlled reproduction.
+G07: real buy/sell/grid/fees/per-venue-currency balances/inventory/rebalancing/split scenarios with disjoint depth, per-child fees, units and request-generation protection.
+G08: bounded asynchronous IPC, acknowledged native start/pause/resume/stop/recovery/quit/sleep behavior, no duplicate writers/orphans, complete real CLI parity and retirement/redirection of bypassing prototype paths.
+G09: every promised visible action works with real results, persistent settings, offline/legacy/error states, responsive/accessibility behavior and original-vs-override replay.
+G10: clean locked architecture-specific builds, current explicit native runners, coherent packaging, actual signing/notary implementation, deterministic corresponding source, proper two-architecture aggregation and honest verifiers.
+G11: complete meaningful suites and integrated bounded C/J/B scenarios using actual production services and installed shell; real RSS/queue/process/storage measurements, usable live REST/WS and controlled recovery evidence.
+G12: freeze exact clean source/config/locks/runtime, obtain authorized exact-source CI, rebuild/sign/notarize/staple, verify quarantined clean-user native arm64/Intel/minimum-OS installation and upgrades, finish current evidence audit and accurate distribution materials.
+
+Do not merely patch highlighted lines. Follow Sections 3-9's full product contract and Section 11-12's concrete acceptance. In particular:
+- The packaged two-venue cost response must serialize nested FillResult data and render grids/split totals.
+- A real stored event must expose its SQL hashes/full ledgers and open detail/replay without crashing; incomplete legacy data is explicit.
+- Original replay must preserve original 0.006/0.004 fees and the full canonical result. No default 0.0025 substitution. Changing acquired_base to 999999, buy_fee to 12345 or config/result hashes must not be exact.
+- Invalid/non-finite/bool/non-positive amounts and bad settings are rejected without partial writes. Stale/incoherent/CRC-invalid books cannot be eligible. A bad Kraken checksum cannot become clean until synchronized recovery. Preserve the official 3310070434 regression.
+- Follow-ups must actually be recorded by production services; empty coverage is UNKNOWN. Disappear-at-250ms/return-at-750ms is not continuous at one second. Restart cannot reset cooldown.
+- Quiet settings must control a durable actual outbox; scheduled intent is not delivered output. Incident grouped evidence/counts must persist and recovery UTC cannot be 1. Empty incident evidence cannot return REPRODUCED or CLI success.
+- An incoming 114-byte capture must not breach a 16-byte quota. Bound pins, raw files, DB/WAL and queues, not only displayed record counts.
+- One available BTC cannot fund complete children totaling 1.6 BTC. Fees, balances, ratios/delays and actual currencies must drive the scenario rather than local cosmetic calculations.
+- A 320px Settings click must not scroll the main shell/content offscreen. A native failure must show recoverable error/stale state and clear loading, never fake LIVE data.
+- All-failed live input, an interrupted scenario, a native ping substituted for GUI, README-only/missing required artifacts, old/unbound binaries, skips and ad hoc/unnotarized production files must fail their respective gates.
+
+Keep owner-selected Dashboard DESIGN_VARIANCE=3, MOTION_INTENSITY=2, VISUAL_DENSITY=8, both themes, brand assets and GPL-3.0-only. Do not ask for these again. Apply AGENTS UI rules and actually exercise 320/768/1024/1440, keyboard/focus/zoom/reduced motion. Avoid cosmetic rewrites or new scope/dependencies without need. No account keys, trading/transfers/custody, telemetry, hosted services or paid purchases.
+
+This prompt authorizes local implementation, project changes, dependency setup, tests, repairs and preparation for JeremyL691/OhMyCrypto GitHub Releases, targeting 1.0.0 only if not already published. Preserve trusted recorded remote-branch/PR, signing/notarization, publication and spending permissions. Credential availability does not grant submission authority. Do not request secret values in chat or enroll/purchase resources. Prepare complete reviewable work before any indispensable external authorization request; ask only for the smallest missing prerequisite, not whether to continue routine local work. Candidate branch/PR authorization is separate from main merge/public publication. Do not silently replace a released version.
+
+Work through eligible goals without routine confirmation and keep meaningful progress updates and atomic generation-checked checkpoints. If a prerequisite blocks one goal, finish unrelated eligible work. If the host/context cannot continue, save exact status, evidence, live handles and next actions. A prompt alone does not wake an exited agent or bypass host/budget limits. Do not spawn/delegate unless the current user or applicable instructions explicitly authorizes it; label self-review honestly.
+
+Preserve original outputs under new verification IDs with scenario outcomes, actual source/input/config/runtime/artifact hashes and OS/architecture. Browser fixtures, real browser contract payloads, domain/service fixtures, live feeds, direct sidecar, installed-native, CI and package evidence are separate categories. No single category substitutes for another. Never alter historical outcomes, weaken expected results, manufacture coverage, bind an old binary to a new commit or promote an external UNKNOWN/NOT_RUN to PASS. Any new production defect belongs in the same active inventory and must be resolved with affected gates rerun.
+
+Finish with .agent/evidence/<candidate-id>/FINAL_ACCEPTANCE.md plus the structured complete G/R/C/J/B matrix, exact final source/config/locks/runtime/assets/hashes, CI URLs, native hosts/minimum-OS/clean install/upgrade/signing/notary/Gatekeeper outcomes, actual delivered docs and zero unresolved release-contract issues. Set PUBLIC_RELEASE_READY only when all required proofs exist; missing credentials/hosts/CI are incomplete gates, not publication-only details. Only explicitly authorized upload may remain afterward. If publication was separately authorized, journal/reconcile once, upload exact verified assets and compare remote download hashes before reporting PUBLISHED.
+
+Begin by reconciling G00 and continue to implementation. Do not ask whether to start.
+```

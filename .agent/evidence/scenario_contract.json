@@ -1,0 +1,57 @@
+{
+  "spec_version": "1.2.0",
+  "contract_name": "ScenarioResultContract",
+  "allowed_statuses": ["PASS", "FAIL", "UNKNOWN", "NOT_RUN"],
+  "rules": {
+    "completion_blockers": ["FAIL", "UNKNOWN", "NOT_RUN"],
+    "rule_1": "Any required scenario marked UNKNOWN or NOT_RUN blocks PUBLIC_RELEASE_READY.",
+    "rule_2": "Test counts or green historical outputs cannot substitute for named scenario PASS.",
+    "rule_3": "Evidence classes must remain distinct; a browser fixture or direct sidecar cannot substitute for installed native shell evidence."
+  },
+  "evidence_classes": [
+    {
+      "class": "SYNTHETIC_DOMAIN",
+      "description": "Pure in-memory unit tests using hand-derived or synthetic domain fixtures."
+    },
+    {
+      "class": "PRODUCTION_SERVICE_FIXTURE",
+      "description": "Production services (MonitoringService, OpportunityService, CostAdvisorService, DiagnosticsService) exercised with deterministic fixtures."
+    },
+    {
+      "class": "LIVE_SERVICE",
+      "description": "Actual network calls to public REST and WebSocket endpoints of Coinbase and Kraken."
+    },
+    {
+      "class": "SERIALIZED_SIDECAR",
+      "description": "Packaged or direct sidecar engine stdin/stdout JSON Lines boundary exercised with real serialized requests."
+    },
+    {
+      "class": "BROWSER_CONTRACT",
+      "description": "Frontend UI components and hooks exercised in browser environment against real serialized outputs."
+    },
+    {
+      "class": "INSTALLED_NATIVE",
+      "description": "Installed macOS Tauri 2 application shell launching and controlling the packaged Python sidecar."
+    },
+    {
+      "class": "CI_RUN",
+      "description": "Authorized GitHub Actions workflow execution on supported clean runners."
+    },
+    {
+      "class": "PACKAGE_VERIFICATION",
+      "description": "Artifact validation: DMG mounting, codesign strict inspection, notarization stapling, shasum verification."
+    }
+  ],
+  "verifier_negatives_definition": {
+    "B01": "All venue samples fail / zero usable data -> live gate fails (non-zero exit).",
+    "B02": "Scenario interrupted before target completions -> incomplete status, non-zero exit.",
+    "B03": "Native app missing -> native gate fails, sidecar ping fallback rejected.",
+    "B04": "Manifest empty, README-only, or missing required release files -> release gate fails.",
+    "B05": "Hash mismatch, wrong architecture, or unbound cached binary -> build/provenance gate fails.",
+    "B06": "Ad hoc signing, missing TeamIdentifier, unnotarized -> distribution gate fails.",
+    "B07": "Quota, queue, RSS limit exceeded or measurement absent -> resource scenario fails.",
+    "B08": "Required test skipped, disabled, or stale report -> final acceptance fails.",
+    "B09": "Empty, tampered, or partial replay/incident bundle -> rejection, no exact/reproduced claim.",
+    "B10": "Intentionally broken contract in isolated build -> aggregate gate fails."
+  }
+}

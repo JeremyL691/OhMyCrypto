@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ohmycrypto"
+version = "1.0.0"
+description = "Deterministic cryptocurrency opportunity verifier, feed diagnostics, and personal execution cost comparison."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "GPL-3.0-only" }
+authors = [
+    { name = "Jeremy Liu" }
+]
+dependencies = [
+    "ccxt>=4.5.36",
+    "aiohttp>=3.13.3",
+    "websockets>=15.0",
+    "typing_extensions>=4.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pyinstaller>=6.4.0",
+]
+
+[project.scripts]
+ohmycrypto = "ohmycrypto.interfaces.cli:main"
+ohmycrypto-sidecar = "ohmycrypto.interfaces.sidecar:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
