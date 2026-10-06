@@ -38,7 +38,7 @@ jobs:
           # Intel
           - os: macos-13
             target: x86_64-apple-darwin
-            arch: x64
+            arch: x86_64
 
     steps:
       - name: Checkout

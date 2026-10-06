@@ -143,6 +143,9 @@ def estimate_buy_fill(
         )
 
     avg_price = actual_quote_spent / (acquired_base + fee_base) if (acquired_base + fee_base) > Decimal("0") else Decimal("0")
+    min_lot_spend = instrument.amount_increment * (asks[-1].price if asks else Decimal("1"))
+    is_complete = remaining_spend <= min_lot_spend
+    rejection_reason = None if is_complete else "insufficient_asks_depth"
 
     return FillResult(
         side="buy",
@@ -156,7 +159,8 @@ def estimate_buy_fill(
         residual_quote=residual_quote,
         residual_base=residual_base,
         levels_consumed=levels_consumed,
-        is_complete=True,
+        is_complete=is_complete,
+        rejection_reason=rejection_reason,
     )
 
 
@@ -289,6 +293,124 @@ def estimate_sell_fill(
     )
 
 
+def compute_canonical_input_payload(
+    symbol: str,
+    buy_book: BookState,
+    sell_book: BookState,
+    all_in_quote_budget: Decimal,
+    buy_instrument: Instrument,
+    sell_instrument: Instrument,
+) -> dict:
+    return {
+        "symbol": symbol,
+        "buy_venue": buy_book.venue,
+        "sell_venue": sell_book.venue,
+        "budget": str(all_in_quote_budget),
+        "budget_units": buy_instrument.quote,
+        "buy_asks": [[str(lvl.price), str(lvl.amount)] for lvl in buy_book.asks],
+        "sell_bids": [[str(lvl.price), str(lvl.amount)] for lvl in sell_book.bids],
+        "buy_book_seq": buy_book.applied_sequence,
+        "sell_book_seq": sell_book.applied_sequence,
+        "buy_instrument": {
+            "price_increment": str(buy_instrument.price_increment),
+            "amount_increment": str(buy_instrument.amount_increment),
+            "min_amount": str(buy_instrument.min_amount),
+            "min_cost": str(buy_instrument.min_cost),
+        },
+        "sell_instrument": {
+            "price_increment": str(sell_instrument.price_increment),
+            "amount_increment": str(sell_instrument.amount_increment),
+            "min_amount": str(sell_instrument.min_amount),
+            "min_cost": str(sell_instrument.min_cost),
+        },
+        "kernel_version": KERNEL_VERSION,
+    }
+
+
+def compute_canonical_config_payload(
+    buy_fee_profile: FeeProfile,
+    sell_fee_profile: FeeProfile,
+    min_profit_threshold: Decimal,
+    min_spread_threshold: Decimal,
+) -> dict:
+    return {
+        "buy_fee": {
+            "maker_rate": str(buy_fee_profile.maker_rate),
+            "taker_rate": str(buy_fee_profile.taker_rate),
+            "fixed_fee": str(buy_fee_profile.fixed_fee),
+            "fee_currency": buy_fee_profile.fee_currency,
+            "charged_on": buy_fee_profile.charged_on,
+        },
+        "sell_fee": {
+            "maker_rate": str(sell_fee_profile.maker_rate),
+            "taker_rate": str(sell_fee_profile.taker_rate),
+            "fixed_fee": str(sell_fee_profile.fixed_fee),
+            "fee_currency": sell_fee_profile.fee_currency,
+            "charged_on": sell_fee_profile.charged_on,
+        },
+        "min_profit": str(min_profit_threshold),
+        "min_spread": str(min_spread_threshold),
+        "kernel_version": KERNEL_VERSION,
+    }
+
+
+def compute_canonical_result_payload(
+    symbol: str,
+    buy_venue: str,
+    sell_venue: str,
+    budget_amount: Decimal,
+    budget_units: str,
+    buy_fill: FillResult,
+    sell_fill: FillResult,
+    net_profit_quote: Decimal,
+    effective_spread: Decimal,
+    midpoint_price: Decimal,
+    is_positive: bool,
+    is_eligible: bool,
+    eligibility_reasons: Sequence[str],
+) -> dict:
+    return {
+        "symbol": symbol,
+        "buy_venue": buy_venue,
+        "sell_venue": sell_venue,
+        "budget_amount": str(budget_amount),
+        "budget_units": budget_units,
+        "net_profit_quote": str(net_profit_quote),
+        "effective_spread": str(effective_spread),
+        "midpoint_price": str(midpoint_price),
+        "is_positive": is_positive,
+        "is_eligible": is_eligible,
+        "eligibility_reasons": list(eligibility_reasons),
+        "buy_fill": {
+            "side": buy_fill.side,
+            "is_complete": buy_fill.is_complete,
+            "rejection_reason": buy_fill.rejection_reason,
+            "acquired_base": str(buy_fill.acquired_base),
+            "quote_spent": str(buy_fill.quote_spent),
+            "fee_quote": str(buy_fill.fee_quote),
+            "fee_base": str(buy_fill.fee_base),
+            "residual_quote": str(buy_fill.residual_quote),
+            "residual_base": str(buy_fill.residual_base),
+            "avg_price": str(buy_fill.avg_price),
+            "levels_consumed": buy_fill.levels_consumed,
+        },
+        "sell_fill": {
+            "side": sell_fill.side,
+            "is_complete": sell_fill.is_complete,
+            "rejection_reason": sell_fill.rejection_reason,
+            "acquired_base": str(sell_fill.acquired_base),
+            "quote_received": str(sell_fill.quote_received),
+            "fee_quote": str(sell_fill.fee_quote),
+            "fee_base": str(sell_fill.fee_base),
+            "residual_quote": str(sell_fill.residual_quote),
+            "residual_base": str(sell_fill.residual_base),
+            "avg_price": str(sell_fill.avg_price),
+            "levels_consumed": sell_fill.levels_consumed,
+        },
+        "kernel_version": KERNEL_VERSION,
+    }
+
+
 def evaluate_cross_venue_opportunity(
     symbol: str,
     buy_book: BookState,
@@ -303,6 +425,28 @@ def evaluate_cross_venue_opportunity(
 ) -> OpportunityResult:
     """Evaluate cross-venue arbitrage opportunity deterministically."""
     reasons: List[str] = []
+
+    if buy_instrument.base != sell_instrument.base:
+        reasons.append("incompatible_base_assets")
+    if buy_instrument.quote != sell_instrument.quote:
+        reasons.append("unsupported_cross_quote_conversion")
+
+    input_payload = compute_canonical_input_payload(
+        symbol=symbol,
+        buy_book=buy_book,
+        sell_book=sell_book,
+        all_in_quote_budget=all_in_quote_budget,
+        buy_instrument=buy_instrument,
+        sell_instrument=sell_instrument,
+    )
+    config_payload = compute_canonical_config_payload(
+        buy_fee_profile=buy_fee_profile,
+        sell_fee_profile=sell_fee_profile,
+        min_profit_threshold=min_profit_threshold,
+        min_spread_threshold=min_spread_threshold,
+    )
+    input_hash = compute_sha256(input_payload)
+    config_hash = compute_sha256(config_payload)
 
     # Estimate buy leg
     buy_fill = estimate_buy_fill(
@@ -334,6 +478,22 @@ def evaluate_cross_venue_opportunity(
             rejection_reason="no_base_acquired",
         )
 
+        res_payload = compute_canonical_result_payload(
+            symbol=symbol,
+            buy_venue=buy_book.venue,
+            sell_venue=sell_book.venue,
+            budget_amount=all_in_quote_budget,
+            budget_units=buy_instrument.quote,
+            buy_fill=buy_fill,
+            sell_fill=sell_stub,
+            net_profit_quote=Decimal("0"),
+            effective_spread=Decimal("0"),
+            midpoint_price=midpoint,
+            is_positive=False,
+            is_eligible=False,
+            eligibility_reasons=reasons,
+        )
+
         return OpportunityResult(
             symbol=symbol,
             buy_venue=buy_book.venue,
@@ -348,9 +508,10 @@ def evaluate_cross_venue_opportunity(
             is_positive=False,
             is_eligible=False,
             eligibility_reasons=tuple(reasons),
-            input_hash="",
-            config_hash="",
+            input_hash=input_hash,
+            config_hash=config_hash,
             kernel_version=KERNEL_VERSION,
+            result_hash=compute_sha256(res_payload),
         )
 
     # Sell leg: sell exactly the net acquired base
@@ -388,23 +549,25 @@ def evaluate_cross_venue_opportunity(
         and is_positive
         and (net_profit >= min_profit_threshold)
         and (effective_spread >= min_spread_threshold)
+        and ("incompatible_base_assets" not in reasons)
+        and ("unsupported_cross_quote_conversion" not in reasons)
     )
 
-    input_payload = {
-        "symbol": symbol,
-        "buy_venue": buy_book.venue,
-        "sell_venue": sell_book.venue,
-        "budget": str(all_in_quote_budget),
-        "buy_book_seq": buy_book.applied_sequence,
-        "sell_book_seq": sell_book.applied_sequence,
-    }
-    config_payload = {
-        "buy_fee": str(buy_fee_profile.taker_rate),
-        "sell_fee": str(sell_fee_profile.taker_rate),
-        "min_profit": str(min_profit_threshold),
-        "min_spread": str(min_spread_threshold),
-        "kernel": KERNEL_VERSION,
-    }
+    res_payload = compute_canonical_result_payload(
+        symbol=symbol,
+        buy_venue=buy_book.venue,
+        sell_venue=sell_book.venue,
+        budget_amount=all_in_quote_budget,
+        budget_units=buy_instrument.quote,
+        buy_fill=buy_fill,
+        sell_fill=sell_fill,
+        net_profit_quote=net_profit,
+        effective_spread=effective_spread,
+        midpoint_price=midpoint,
+        is_positive=is_positive,
+        is_eligible=is_eligible,
+        eligibility_reasons=reasons,
+    )
 
     return OpportunityResult(
         symbol=symbol,
@@ -420,7 +583,8 @@ def evaluate_cross_venue_opportunity(
         is_positive=is_positive,
         is_eligible=is_eligible,
         eligibility_reasons=tuple(reasons),
-        input_hash=compute_sha256(input_payload),
-        config_hash=compute_sha256(config_payload),
+        input_hash=input_hash,
+        config_hash=config_hash,
         kernel_version=KERNEL_VERSION,
+        result_hash=compute_sha256(res_payload),
     )

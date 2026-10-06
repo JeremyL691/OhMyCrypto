@@ -29,16 +29,24 @@ impl Sidecar {
     fn spawn(app: &tauri::AppHandle) -> Result<Arc<Sidecar>, String> {
         let exe = std::env::current_exe()
             .map_err(|e| format!("cannot resolve app executable: {e}"))?;
-        let sidecar_path = exe
+        let parent_dir = exe
             .parent()
-            .ok_or("executable has no parent directory")?
-            .join("sidecar/ohmycrypto-sidecar");
+            .ok_or("executable has no parent directory")?;
+        let mut sidecar_path = parent_dir.join("sidecar/ohmycrypto-sidecar");
 
         if !sidecar_path.exists() {
-            return Err(format!(
-                "sidecar binary not found at {}",
-                sidecar_path.display()
-            ));
+            let alt_x86_64 = parent_dir.join("sidecar/ohmycrypto-sidecar-x86_64");
+            let alt_arm64 = parent_dir.join("sidecar/ohmycrypto-sidecar-arm64");
+            if alt_x86_64.exists() {
+                sidecar_path = alt_x86_64;
+            } else if alt_arm64.exists() {
+                sidecar_path = alt_arm64;
+            } else {
+                return Err(format!(
+                    "sidecar binary not found at {}",
+                    sidecar_path.display()
+                ));
+            }
         }
 
         let mut child = Command::new(&sidecar_path)

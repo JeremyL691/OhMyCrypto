@@ -371,6 +371,9 @@ def prepare_release(
     if sidecar_bin.is_file():
         shutil.copy2(sidecar_bin, sidecar_target_dir / sidecar_name)
         os.chmod(sidecar_target_dir / sidecar_name, 0o755)
+        if sidecar_name != "ohmycrypto-sidecar":
+            shutil.copy2(sidecar_bin, sidecar_target_dir / "ohmycrypto-sidecar")
+            os.chmod(sidecar_target_dir / "ohmycrypto-sidecar", 0o755)
     else:
         shutil.copytree(sidecar_bin.parent, sidecar_target_dir, dirs_exist_ok=True)
 
@@ -491,7 +494,11 @@ def verify_release(manifest_path: Path) -> None:
     print(f"License: {manifest.get('license')}")
     print(f"Commit: {manifest.get('commit')}")
 
-    for a in manifest.get("artifacts", []):
+    artifacts = manifest.get("artifacts", [])
+    if not artifacts:
+        failures.append("Manifest contains no artifacts; at least one release artifact is required.")
+
+    for a in artifacts:
         file_path = base_dir / a["name"]
         if not file_path.exists():
             failures.append(f"Missing artifact: {a['name']}")
@@ -602,7 +609,7 @@ def main():
         "--arch",
         type=str,
         default="arm64",
-        choices=["arm64", "x86_64"],
+        choices=["arm64", "x86_64", "x64"],
         help="Target architecture for the DMG (default arm64)",
     )
     prep_parser.add_argument(
@@ -623,6 +630,9 @@ def main():
     agg_parser.add_argument("--output", type=str, required=True, help="Output directory")
 
     args = parser.parse_args()
+
+    if getattr(args, "arch", None) == "x64":
+        args.arch = "x86_64"
 
     if args.command == "prepare":
         prepare_release(

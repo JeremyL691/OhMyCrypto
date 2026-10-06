@@ -1,20 +1,22 @@
 # OhMyCrypto
 
-OhMyCrypto is currently a Python command-line prototype for comparing cryptocurrency prices across exchanges and estimating opportunities from order book depth. It can issue macOS sound and voice notifications. It does not place orders.
+OhMyCrypto is a local-first macOS application project for cryptocurrency opportunity verification, feed diagnostics and execution cost comparison. A Python engine, CLI and Tauri desktop candidate exist; the complete workflows are still being repaired and validated. It does not place orders.
 
-The complete refactor will deliver one local-first macOS application with three capabilities:
+The completion plan will deliver one local-first macOS application with three capabilities:
 
 1. Opportunity verification and replay: inspect costs, data quality, and how long quoted conditions persist.
 2. Market data quality diagnostics: measure collection problems and preserve reproducible incident evidence.
 3. Personal execution cost comparison: compare estimated purchase or sale costs for a selected amount and venue set.
 
-These capabilities are planned. They are not available in the current prototype. The selected distribution channel is GitHub Releases.
+The full desktop workflows are still being completed and verified. The selected distribution channel is GitHub Releases.
 
 ## Current status
 
-The October 5, 2026 audit found working public ticker and order book access, nine passing unit tests, and unresolved freshness, alert deduplication, and non-finite-number handling defects. The upgraded source and tests were local changes outside the initial Git commit. Short live checks are not evidence of long-term reliability or actual trading profitability.
+The completion review on October 5, 2026 found a Python engine, Tauri desktop shell and packaged candidate, with 57 Python tests, 7 UI unit tests and 8 browser fixture E2E tests passing. Additional checks reproduced defects in repeated acquisition, exact replay/hashes, native error handling, split-depth conservation, Kraken checksums, feature wiring and release verification. The product is not release ready.
 
-The current dependency pins require Python 3.11 or newer. Python 3.12 is the verified development baseline. Native sound and speech require macOS.
+The owner cancelled the fixed 24-hour task. The revised execution guide replaces long-duration gates with bounded real-product functional and recovery checks while retaining the complete three-capability scope and macOS distribution requirements. Existing artifacts and prior pass reports are historical until the repaired candidate is verified.
+
+Python 3.12 is the development baseline. Native sound and speech require macOS. The commands below describe the retained prototype, not installation of the final desktop product.
 
 ## Run the existing prototype
 

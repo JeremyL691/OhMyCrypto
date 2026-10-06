@@ -1,0 +1,71 @@
+{
+  "record_id": "owner_cancel_soak24h_gen13_20261005",
+  "recorded_at_utc": "2026-10-06T02:28:11.890831+00:00",
+  "owner_local_date": "2026-10-05",
+  "authorization_source": "Direct owner instruction in this chat: cancel the 24-hour task; complete the product and prepare release under a revised plan.",
+  "job_id": "soak24h_gen13",
+  "task_id": "T18",
+  "logical_invocation": "soak_86400_release_v1_a8b868a",
+  "terminated_pids": [
+    63819,
+    63821,
+    82154,
+    82156
+  ],
+  "former_wrapper_pid": 63817,
+  "signal": "SIGTERM",
+  "verification": "Read-only ps for PIDs 63817/63819/63821 and pgrep for scripts/soak.py.*soak24h returned no matching processes after termination.",
+  "status": "cancelled_by_owner",
+  "must_not_restart": true,
+  "historical_report_path": ".agent/evidence/soak24h/soak_report.json",
+  "historical_report_sha256": "ca76829ef91094be377862daccb899d77c06013a39e4abb1df46efaa582d2466",
+  "historical_report_summary": {
+    "target_duration_sec": 86400,
+    "actual_duration_sec": 313.14,
+    "completed_target": false,
+    "passed": false
+  },
+  "evidence_applicability": "Cancelled and inapplicable as a release pass even if the old harness emitted passed=true.",
+  "new_policy": "No 24-hour or replacement mandatory long soak. Revised R12 uses completed bounded product scenarios.",
+  "restart_attempt": {
+    "pids": [
+      82154,
+      82156
+    ],
+    "command": "caffeinate -is .venv/bin/python scripts/soak.py --duration 86400 --profile release-v1 --output .agent/evidence/soak24h",
+    "action": "SIGTERM to the re-created task and helper",
+    "reason": "Original agent retried the cancelled task under stale instructions."
+  },
+  "cancellation_guard": {
+    "file": "scripts/soak.py",
+    "condition": "duration >= 86400 and owner-cancellation.json must_not_restart is true",
+    "checked_command": "scripts/soak.py --duration 86400 --profile release-v1 --output /private/tmp/ohmycrypto-cancel-guard-check",
+    "exit_code": 2,
+    "result": "Owner cancellation error before data-directory creation, client imports or worker startup."
+  },
+  "historical_reports": [
+    {
+      "path": ".agent/evidence/soak24h/soak_report.json",
+      "sha256": "ca76829ef91094be377862daccb899d77c06013a39e4abb1df46efaa582d2466",
+      "summary": {
+        "target_duration_sec": 86400,
+        "actual_duration_sec": 313.14,
+        "completed_target": false,
+        "passed": false
+      },
+      "applicability": "cancelled historical output; not a release pass"
+    },
+    {
+      "path": ".agent/evidence/soak24h/soak_report_interrupted_1550s.json",
+      "sha256": "902179c9837e2bcee151de4f7c2e18f8dc5f527377b9b97d64b0b3410613b02d",
+      "summary": {
+        "target_duration_sec": 86400,
+        "actual_duration_sec": 1550.89,
+        "completed_target": false,
+        "passed": true
+      },
+      "applicability": "cancelled historical output; not a release pass"
+    }
+  ],
+  "updated_at_utc": "2026-10-06T02:31:17.161749+00:00"
+}

@@ -14,10 +14,11 @@ from ohmycrypto.domain.models import BookLevel, BookState
 
 
 def test_kraken_num_formatting():
-    """Verify format_kraken_num removes trailing zeroes properly."""
-    assert format_kraken_num(Decimal("100.50000")) == "100.5"
-    assert format_kraken_num(Decimal("100.00000")) == "100"
-    assert format_kraken_num(Decimal("0.000123")) == "0.000123"
+    """Verify format_kraken_num removes '.' and strips leading zeroes per Kraken v2 spec."""
+    assert format_kraken_num(Decimal("45285.2")) == "452852"
+    assert format_kraken_num(Decimal("0.00100000")) == "100000"
+    assert format_kraken_num("0.00100000") == "100000"
+    assert format_kraken_num(Decimal("0")) == "0"
 
 
 def test_calculate_kraken_checksum():
@@ -30,9 +31,9 @@ def test_calculate_kraken_checksum():
         BookLevel(price=Decimal("50010.00"), amount=Decimal("0.8")),
         BookLevel(price=Decimal("50020.00"), amount=Decimal("1.2")),
     ]
-    # Asks first: 50010 + 0.8 + 50020 + 1.2
-    # Then Bids: 50000 + 1.5 + 49990 + 2
-    expected_str = "500100.8500201.2500001.5499902"
+    # Asks first (low to high): 5001000 + 8 + 5002000 + 12
+    # Then Bids (high to low): 5000000 + 15 + 4999000 + 20
+    expected_str = "50010008500200012500000015499900020"
     expected_crc = zlib.crc32(expected_str.encode("utf-8"))
 
     crc = calculate_kraken_checksum(bids, asks)

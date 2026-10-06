@@ -143,6 +143,22 @@ def main():
     parser.add_argument("--no-websocket", action="store_true", help="Disable the WebSocket stream worker")
     args = parser.parse_args()
 
+    # The owner cancelled this release gate. Old agent retries must not
+    # resurrect it while the revised completion plan is being handed off.
+    cancellation_path = (
+        REPO_ROOT / ".agent/evidence/plan-revision-20261005/owner-cancellation.json"
+    )
+    if args.duration >= 86400 and cancellation_path.exists():
+        try:
+            cancellation = json.loads(cancellation_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            parser.error("Cannot validate the owner cancellation record; long soak rejected.")
+        if cancellation.get("must_not_restart") is True:
+            parser.error(
+                "The owner cancelled the 24-hour task. Follow specification 1.1.0 "
+                "bounded product scenarios; do not restart this run."
+            )
+
     out_path = Path(args.output)
     if out_path.suffix == ".json":
         out_file = out_path

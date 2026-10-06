@@ -26,6 +26,34 @@ from ohmycrypto.domain.kernel import (
 )
 
 
+def _consume_depth_buy(asks: Sequence[BookLevel], base_consumed: Decimal) -> List[BookLevel]:
+    rem_asks: List[BookLevel] = []
+    to_consume = base_consumed
+    for lvl in asks:
+        if to_consume <= Decimal("0"):
+            rem_asks.append(lvl)
+        elif lvl.amount <= to_consume:
+            to_consume -= lvl.amount
+        else:
+            rem_asks.append(BookLevel(price=lvl.price, amount=lvl.amount - to_consume))
+            to_consume = Decimal("0")
+    return rem_asks
+
+
+def _consume_depth_sell(bids: Sequence[BookLevel], base_consumed: Decimal) -> List[BookLevel]:
+    rem_bids: List[BookLevel] = []
+    to_consume = base_consumed
+    for lvl in bids:
+        if to_consume <= Decimal("0"):
+            rem_bids.append(lvl)
+        elif lvl.amount <= to_consume:
+            to_consume -= lvl.amount
+        else:
+            rem_bids.append(BookLevel(price=lvl.price, amount=lvl.amount - to_consume))
+            to_consume = Decimal("0")
+    return rem_bids
+
+
 class CostAdvisorService:
     """Evaluates and compares execution costs across venues and order scenarios."""
 
@@ -172,6 +200,14 @@ class CostAdvisorService:
         total_fees_base = Decimal("0")
         all_complete = True
 
+        # Track remaining available depth per venue so child orders consume disjoint depth
+        venue_asks: Dict[str, Sequence[BookLevel]] = {
+            venue: book.asks for venue, book in books.items()
+        }
+        venue_bids: Dict[str, Sequence[BookLevel]] = {
+            venue: book.bids for venue, book in books.items()
+        }
+
         for venue, child_amt in allocations:
             book = books.get(venue)
             fee = fee_profiles.get(venue, FeeProfile(venue=venue))
@@ -183,32 +219,38 @@ class CostAdvisorService:
                 continue
 
             if side == "buy":
-                fill = estimate_buy_fill(book.asks, child_amt, fee, inst)
+                current_asks = venue_asks.get(venue, ())
+                fill = estimate_buy_fill(current_asks, child_amt, fee, inst)
                 child_results.append({
                     "venue": venue,
                     "budget": str(child_amt),
                     "fill": fill,
                 })
-                if fill.is_complete:
-                    total_spent_or_received += fill.quote_spent
-                    total_base_acquired_or_sold += fill.acquired_base
-                    total_fees_quote += fill.fee_quote
-                    total_fees_base += fill.fee_base
-                else:
+                base_consumed = fill.acquired_base + fill.fee_base
+                venue_asks[venue] = _consume_depth_buy(current_asks, base_consumed)
+
+                total_spent_or_received += fill.quote_spent
+                total_base_acquired_or_sold += fill.acquired_base
+                total_fees_quote += fill.fee_quote
+                total_fees_base += fill.fee_base
+                if not fill.is_complete:
                     all_complete = False
             else:
-                fill = estimate_sell_fill(book.bids, child_amt, fee, inst)
+                current_bids = venue_bids.get(venue, ())
+                fill = estimate_sell_fill(current_bids, child_amt, fee, inst)
                 child_results.append({
                     "venue": venue,
                     "base_amount": str(child_amt),
                     "fill": fill,
                 })
-                if fill.is_complete:
-                    total_spent_or_received += fill.quote_received
-                    total_base_acquired_or_sold += (child_amt - fill.residual_base - fill.fee_base)
-                    total_fees_quote += fill.fee_quote
-                    total_fees_base += fill.fee_base
-                else:
+                base_consumed = child_amt - fill.residual_base
+                venue_bids[venue] = _consume_depth_sell(current_bids, base_consumed)
+
+                total_spent_or_received += fill.quote_received
+                total_base_acquired_or_sold += (child_amt - fill.residual_base - fill.fee_base)
+                total_fees_quote += fill.fee_quote
+                total_fees_base += fill.fee_base
+                if not fill.is_complete:
                     all_complete = False
 
         return {

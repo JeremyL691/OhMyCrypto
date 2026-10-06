@@ -1,12 +1,24 @@
 # OhMyCrypto Project Execution Guide
 
-Specification version: 1.0.0
+Specification version: 1.1.0
 
 Prepared: October 5, 2026, America/Los_Angeles
 
-Status: documentation handoff. Implementation under this guide has not started.
+Status: completion and release remediation plan for the existing implementation. Revised after the October 5 code review and the owner's explicit cancellation of the 24-hour task. This document is not evidence of product completion.
 
 ## 1. Authority, scope, and completion
+
+### Owner revision: October 5, 2026
+
+The owner cancelled the running 24-hour task and requested a new detailed plan and successor prompt to finish the entire product and prepare it for release. This revision supersedes the previous fixed-duration reliability requirements and previous task completion claims.
+
+- T18 / `soak24h_gen13` is cancelled by the owner. Its Python process and caffeinate helper were stopped and confirmed absent. Never restart it on resume.
+- Neither a 24-hour soak nor the former fixed Intel 60-minute window is a release requirement. Do not replace them with another mandatory long run, wait for a day to elapse, or create an unattended soak automation.
+- R12 now means bounded, scenario-based monitoring and recovery validation on the actual product, with repeated real acquisition and controlled fault checks. Completion of the scenarios determines success; elapsed time alone never does.
+- Complete all three product capabilities, the real desktop/CLI workflows, and the selected macOS distribution checks. Cancellation of the soak does not waive calculation correctness, honest data states, functional completeness, or installation/signing checks.
+- Reuse the existing implementation and repair it. A restart from zero, a second competing roadmap, new hosted infrastructure, or additional product scope is unnecessary.
+- Previous evidence is historical. Reopen affected requirements and freeze a new candidate after remediation. Old `PROVEN`, `PASSED`, and `PUBLIC_RELEASE_READY` fields do not transfer to the new candidate.
+
 
 This is the authoritative specification for the complete refactor. Deliver all three capabilities in one release:
 
@@ -43,64 +55,52 @@ The requested implementation endpoint is `PUBLIC_RELEASE_READY`: all product and
 
 Use distinct states:
 
+- `IN_PROGRESS`: implementation/remediation has unfinished required work.
 - `IMPLEMENTED`: required code exists; acceptance incomplete.
-- `PRODUCT_VALIDATED`: correctness, integration, recovery, UX and continuous-run gates pass.
+- `PRODUCT_VALIDATED`: correctness, integration, recovery, UX and bounded product scenarios pass.
 - `ARTIFACT_BUILT`: files exist, but channel verification may remain.
-- `PUBLIC_RELEASE_READY`: all R01-R15/T00-T11 and channel conditions proven.
+- `PUBLIC_RELEASE_READY`: all revised R01-R15/N00-N08 and channel conditions proven.
 - `PUBLISHED`: authorized upload confirmed and downloadable artifact hashes match verified files.
 
-An unsigned DMG is intermediate. Missing signing, notarization, native architecture evidence, or a final soak report prevents release readiness. `PROJECT_COMPLETE` requires the entire original scope and every required gate, with independent review and candidate-bound evidence. No implementing agent may waive a required check, shrink scope to fit completed work, or replace native/live acceptance with a mock.
+An unsigned DMG is intermediate. Missing signing, notarization, native architecture evidence, or a required functional scenario prevents release readiness. `PROJECT_COMPLETE` requires the entire original scope and every required gate, with independent review and candidate-bound evidence. No implementing agent may waive a required check, shrink scope to fit completed work, or replace native/live acceptance with a mock.
 
-The current assignment is documentation only. Do not treat this guide or its schemas as authorization to change code in this chat.
+This handoff defines authorized successor implementation and local release preparation. The current planning turn changes documentation/state and adds a narrow owner-cancellation guard to the old soak entry point; it does not implement the product repairs. Preserve recorded authorization for remote writes, signing submissions, spending and publication. The owner wants release after development completion; the known-broken candidate must not be published.
 
 ## 2. Current evidence and where to start
 
-Repository: `JeremyL691/OhMyCrypto`.
+Repository: `JeremyL691/OhMyCrypto`; checkout: `/Users/jeremyliu/Desktop/Projects/OhMyCrypto`; branch: `codex/v1-refactor`.
 
-Observed local HEAD: `1058083ad92b23f4e16d7068f9aea1a665209d60`, branch `main`. GitHub main matched it in the October 5 audit; the remote then had one branch, no releases, and zero Actions runs. Recheck these observations at implementation start.
+Review baseline: local HEAD `561420d9465bb0b633c3f6944009ad3d08b589fb`. Existing release assets identify candidate `a8b868a8553f7a98ecb7375e31e4771e1813db3a`. The intervening changes include evidence and generated release assets; recheck the actual tree before implementation. Remote main was still `1058083ad92b23f4e16d7068f9aea1a665209d60` at this review and no remote candidate branch was found. No current candidate CI pass was established.
 
-The starting tree contains pre-existing changes to README and all five Python modules, untracked tests, and a CodeGraph index. Preserve these before replacement. Resetting to the initial commit would discard the locally upgraded order book implementation.
+### 2.1 Verified baseline and its limits
 
-### 2.1 Existing responsibilities and migration
+- The guide's Python unit/integration/replay command passed 57 tests after removing sandbox restrictions that prevented localhost WebSocket tests and bundled execution. The initial sandbox failures were environmental, not established product defects.
+- TypeScript typecheck passed; UI unit tests passed 7 cases; browser E2E passed 8 cases against the existing built fixture UI. These do not prove installed-app behavior.
+- Browser checks at 320, 768, 1024 and 1440 pixels found no whole-page horizontal overflow across the five destinations. They are not full accessibility or native WebView acceptance.
+- Existing artifact hashes matched the manifest. The application signature was ad hoc with no TeamIdentifier; the arm64 DMG had no stapled notarization ticket. Real Intel-host, minimum-OS and quarantined clean-user installation were not established by this review.
+- The old `.agent/evidence/t11_final_audit.json` declares release readiness for an earlier candidate. Treat it as superseded evidence, not the current completion authority.
+- The cancelled task's generated report is preserved as historical output. Its `passed` field cannot override the owner's cancellation or establish reliability.
 
-| File | Current responsibility | Required migration |
-|---|---|---|
-| `src/main.py` | CLI, scan loop, logs, notification scheduling | Separate orchestration; add bounded runs and explicit lifecycle |
-| `src/market.py` | Concurrent CCXT REST access and error counters | Preserve useful behavior; add provenance, capabilities, streaming and resynchronization |
-| `src/strategy.py` | Quotes, spread scan, depth fills, alerts | Extract deterministic domain kernel; repair correctness first |
-| `src/notifier.py` | `afplay` and `say` | Observable, bounded notification delivery and durable outbox |
-| `src/config.py` | Defaults and voice/sound mappings | Versioned validated settings and per-venue fee profiles |
-| `tests/` | Nine fake-exchange unit tests | Preserve baseline; add independent regression, integration and native coverage |
-| `requirements.txt` | Flat environment pins with unused analytical dependencies | Declare direct dependencies; reproducible lock after import/packaging verification |
+### 2.2 Mandatory reproduced regressions
 
-Prefer codebase-memory MCP discovery when available; index through it if needed. If unavailable, use the existing CodeGraph index before raw source searches. Use text search for docs/configuration. Do not initialize a separate CodeGraph index merely for this plan.
+| ID | Observed behavior | Source anchor | Required repair |
+|---|---|---|---|
+| F01 | Repeated real Coinbase acquisition using the monitor's loop pattern: first fetch succeeds; second raises `Event loop is closed` | `services/monitor.py:_run_cycle`; persistent CCXT client | One persistent event loop and owned client lifecycle; repeated acquisition and recovery |
+| F02 | Original profit `9.451371529250`, replay profit `9.1777431015331250`, yet `is_exact_match=true`; changing the sell price from 110 to 120 leaves input hash unchanged | `services/opportunity.py:replay_bundle`; `domain/kernel.py` input hash | Full capture/config/version replay; price/quantity-inclusive hashes and canonical-result equality |
+| F03 | Native IPC comparison failure returns two fixture rows marked COMPLETE; no demo banner is visible at that point | `desktop/src/ipc.ts:compareCosts` | Fail visibly in native mode; explicit demo selection only; atomic data provenance |
+| F04 | One available BTC at price 100 is reused by two 80-unit child budgets; output claims 1.6 BTC and all_complete | `services/cost.py:evaluate_split_order` | Consume shared depth per child and enforce conservation |
+| F05 | Official Kraken example checksum is 3310070434; both implementations calculate 383156747; mismatch recovery is disabled by default | `adapters/stream.py`; `adapters/kraken.py` | Correct decimal formatting/parsing and subscribed-depth handling; isolate mismatches and resync |
+| F06 | Latency and amount-grid outcomes are hardcoded; split slider does not compute; Quiet Mode resets on tab navigation; settings export buttons have no handler | Desktop diagnostics, cost and settings views | Real service wiring, durable settings and completed actions |
+| F07 | Adversarial soak test: 86400-second target, all REST samples fail, terminate after 6.03 seconds; completed_target=false but exit 0 / passed=true | `scripts/soak.py` | Remove formal soak gating; verifiers must reject incomplete/no-data scenarios |
+| F08 | Release workflow supplies `--arch x64`; release CLI rejects it; Tauri bundle.active=false conflicts with workflow bundle lookup; Developer ID branch only prints a message | Release workflow, release CLI and Tauri configuration | Coherent repeatable dual-architecture packaging and actual signing/notarization |
 
-### 2.2 Observed checks and limits
+These observations identify repair targets, not permission to alter original evidence. Add independent regression cases and fix the implementation. Do not weaken assertions, relabel fixtures as live, or edit historical result fields to obtain a pass.
 
-This documentation session reran all nine existing tests successfully using `venv/bin/python`, Python 3.12. Earlier checks in this same chat observed:
+The original implementing agent continued running during planning and attempted to restart the cancelled task. It was stopped again. A narrow guard in scripts/soak.py rejects 24-hour-or-longer runs when the owner cancellation record says must_not_restart. Preserve concurrent implementation changes and re-read current source before acting on review-baseline findings.
 
-- Thirty seconds of default public Coinbase/Kraken monitoring: nine successful cycles, no request errors and no qualifying alert.
-- Two real public 20-level books and a completed fill/cost calculation, approximately -2.14 USDT for that sample.
-- A synthetic profitable main-loop scenario: eight cycles, one stubbed notification and closed clients after cancellation.
-- Installed `say` and `afplay`. Actual audible playback and desktop interaction were not tested.
+### 2.3 Preserve useful work
 
-These observations have no frozen-release artifact binding. They are baseline evidence, not final-gate results. Do not copy their counts into a future report as newly run validation.
-
-### 2.3 Mandatory defect repairs and regression inputs
-
-| Defect | Reproduction or source evidence | Required behavior |
-|---|---|---|
-| Receive time masks event age | A fake ticker one hour old receives current `fetched_at_ms` and passes current filtering | Preserve both clocks and timestamp semantics; receiving an old known quote does not make it fresh |
-| Tiny price move resets cooldown | Midpoint 100000.0 to 100000.2 after one second creates a new fingerprint | Stable route/instrument/profile/amount key and persistent episode identity |
-| Non-finite values accepted | NaN bid/ask/last pass current comparisons | Reject NaN, infinity, booleans and malformed numeric types before calculations/decisions |
-| All-in budget exceeded | Quote budget 1000 at 0.1% buy fee becomes actual spend 1001 | Buy spend plus supported fees stays within the specified all-in budget |
-| Wrong currency labels | Arbitrary BASE/QUOTE accepted; speech always says dollars | Preserve actual quote/base/fee units; no silent USD/USDT/USDC equivalence |
-| Weak input/capability validation | NaN can pass numeric checks; only symbol syntax checked | Finite bounded arguments, real spot support, limits and precision |
-| Ephemeral state | Health/cooldown dictionaries lost on restart | Persist relevant state, identify gaps, avoid duplicate alerts |
-| Hidden notification failures | Subprocess errors swallowed; state recorded before delivery | Separate decision/enqueue/delivery times and bounded observed retries |
-| Incorrect Python support | Old README said 3.9+; installed NumPy/Pandas require >=3.11 | Python 3.12 baseline and clean-install compatibility checks |
-
-Ticker timestamps may describe last trade time, book update time, or be absent. Do not blindly require every ticker timestamp to be recent. Declare its meaning in connector metadata. Tickers discover candidates; coherent order books establish amount-specific quoted conditions. Unknown data remains explicitly uncertain.
+Keep the Python/Decimal domain separation, SQLite/WAL foundation, versioned JSONL bridge, Tauri-owned sidecar, five UI destinations, themes and existing tests. Review their contracts and integration rather than replacing them for style. The development environments are symlinks outside the iCloud-synced checkout; do not move, delete or recreate them without need. The current release assets are historical intermediates and must be rebuilt from the repaired frozen source.
 
 ## 3. Final product behavior
 
@@ -155,10 +155,10 @@ Implement split-order scenario comparisons with explicit allocations and delays.
 | Native shell | Tauri 2 with packaged Python sidecar | Parent owns child lifetime and allowlisted IPC |
 | IPC | Versioned JSON Lines over child stdin/stdout | No unauthenticated local listener; stdout reserved for protocol |
 | CLI | Installed `ohmycrypto` entry point | Same domain/services as desktop |
-| Packaging | PyInstaller onedir plus Tauri per-target resources/entry | Include interpreter/dependencies; clean-user native verification |
+| Packaging | Verified PyInstaller bundle plus Tauri per-target resources/entry | Include interpreter/dependencies; clean-user native verification |
 | Checks | pytest, independent oracles, IPC/replay tests, Playwright, native checks | Browser mocks supplement rather than replace installed-app acceptance |
 
-Prototype sidecar packaging/start/quit in T01 before investing in UI. Use current locked-version documentation for sidecar naming and resources. Do not add hosted services, Redis, Kubernetes, user accounts, a trading bot framework or an LLM to satisfy this release. Reuse mature tools where appropriate without hiding project-specific correctness contracts.
+Repair and validate the existing sidecar packaging/start/quit contract early in N00/N02/N06 before final UI acceptance. Use current locked-version documentation for sidecar naming and resources. Do not add hosted services, Redis, Kubernetes, user accounts, a trading bot framework or an LLM to satisfy this release. Reuse mature tools where appropriate without hiding project-specific correctness contracts.
 
 Start with the current Python calculations as migration material, not as the sole correctness oracle. Write independent regression/oracle cases, define normalized contracts, migrate useful behavior behind those contracts, then connect adapters/storage/services/UI. Delete old paths only after replacements and compatibility checks pass.
 
@@ -192,7 +192,7 @@ tests/
   fixtures/
   replay/
   acceptance/
-scripts/         # verification, soak, build and release entry points
+scripts/         # bounded verification, build and release entry points
 release/         # candidate manifests and channel configuration
 .agent/
   EXECUTION_STATE.json
@@ -248,7 +248,7 @@ Persist settings, fee profiles, alert episodes, notification outbox, incidents, 
 
 Reject malformed types, bool-as-number, non-finite values, non-positive prices/quantities, crossed/unsorted normalized books, incompatible assets/quotes, unsupported spot markets and missing mandatory metadata. Aggregate exact duplicate levels only with an explicit normalization rule. Isolate invalid connectors/events instead of killing the monitor.
 
-Allow finite zero-fee profiles and optional zero thresholds; enforce positive quantities and finite bounded intervals. Verify exchange capability through the supported registry/metadata, not arbitrary `hasattr`. Maintain exact endpoint/venue identity: do not mix Coinbase Advanced Trade metadata with Coinbase Exchange stream data without verified equivalence. The initial release supports two declared public spot connectors; register their current venue IDs and common supported symbols during T03. Additional unsupported venues get clear results, not fictional support.
+Allow finite zero-fee profiles and optional zero thresholds; enforce positive quantities and finite bounded intervals. Verify exchange capability through the supported registry/metadata, not arbitrary `hasattr`. Maintain exact endpoint/venue identity: do not mix Coinbase Advanced Trade metadata with Coinbase Exchange stream data without verified equivalence. The initial release supports two declared public spot connectors; register their current venue IDs and common supported symbols during N02. Additional unsupported venues get clear results, not fictional support.
 
 ### 6.2 All-in budgets, fees and rounding
 
@@ -322,68 +322,182 @@ Each binary release includes access to its exact corresponding source: applicati
 
 Signing credentials stay in keychain/CI secrets; state stores reference names/availability only. Enrollment, paid data, runners and hosting need explicit budgets. Public API access does not establish unrestricted raw-data redistribution rights. Check connector terms before sharing captured samples; use synthetic/sanitized fixtures when real samples are not shareable.
 
-## 10. Tasks and construction order
+## 10. Detailed completion plan and construction order
 
-This table defines required tasks. State stores status/dependencies/evidence references, not conflicting acceptance prose.
+N00-N08 are the active task IDs for this revision. T00-T18 are historical task records; old done flags are not acceptance for N tasks. The owner-cancelled T18 remains cancelled. The following phases preserve Sections 3-9 as the product contract.
 
-| ID | Dependencies | Work | Exit evidence |
-|---|---|---|---|
-| T00 | None | Preserve tree; inspect rules/remote; record decisions, authorization, prerequisites/budget; initialize state | Baseline manifest, valid DAG, prerequisite register |
-| T01 | T00 | Scaffold, contracts, independent kernel boundaries, IPC/native packaging spike | Clean install/import; bundled sidecar round-trip and owned-child quit |
-| T02 | T01 | Repair input/time/cooldown/budget/units/fees/precision/delivery visibility | Early R01/R02 regression/oracle evidence; baseline failures; full persistence/restart gates wait for T04/T09 |
-| T03 | T02 | Public metadata/REST/WS adapters, reconstruction and coherent books | R03 live/recorded conformance, gap/resync and symbol capabilities |
-| T04 | T03 | SQLite, recovery, archives, stable events, retention/outbox/queues | Engine/storage subset of R04 and recovery checks; full installed-app R09 is later |
-| T05 | T04 | Opportunity verification, follow-up and replay/import/export | R05 deterministic and temporal evidence |
-| T06 | T04 | Diagnostics, distributions and incident reproduction | R06 induced-fault detection/reproduction |
-| T07 | T04 | Buy/sell advisor, amount curves, inventory/rebalance/split scenarios | R07 arithmetic/inventory/depth oracles |
-| T08 | T05,T06,T07 | All views, selected design, accessibility and native workflows | R08 responsive/theme/native UX and before/after |
-| T09 | T08 | Freeze committed source/config; prepare immutable production bundle; run final product/security/recovery/CI and continuous checks | Complete R01-R12 on candidate, including signed production-bundle soak; record any early evidence replaced |
-| T10 | T09 | Final both-architecture and distribution validation; corresponding source/notices/release materials | R13/R14 package/channel/source correspondence; preserve tested runtime inputs |
-| T11 | T10 | Independent completion audit and release-ready handoff; publish only if authorized | R15 and every requirement proven; reviews resolved; release state justified |
+### N00 - Reconcile scope, evidence and working state
 
-T05-T07 may be delegated with isolated ownership after shared dependencies pass. T00-T02 and freeze/release remain coordinated. Early native/packaging probes should happen before formal final gates; early checks do not replace candidate-bound verification. Never reduce product scope because one feature passed first.
+Dependencies: none.
 
-A task can finish its specified implementation slice while related final requirement status remains unproven. Early checks contribute evidence but cannot mark an entire final R-row passed. Before T09, commit/freeze source/settings/locks and record app, sidecar, native dependency and resource identities. Packaging/signing pipeline implementation must be ready before final checks; T10 verifies/reuses outputs rather than introducing untested runtime changes. Any relevant source/resource/layout change reopens affected gates and the soak. Signature/notarization metadata-only changes require documented runtime-content equivalence and repeated channel checks; do not assume equivalence from matching source commit alone.
+1. Read instructions, this revision, prompt, state and handoff; inspect Git changes and actual processes. Verify the cancelled task is absent and do not restart it.
+2. Retain historical reports and budgets/authorization/retry lineage. Mark affected gates pending or incomplete, attach F01-F08 to the active work, and remove any automatic completion transition driven by the old soak.
+3. Establish current tools and dependency inputs. Inspect the current remote default branch read-only. Make new work reviewable on the existing candidate branch; preserve unrelated changes.
+4. Map the five destinations and CLI actions to service methods and persisted records. Enumerate stub buttons, fixture fallbacks, hardcoded financial/diagnostic values and uncalled service methods.
+5. Turn the reproduced defects into meaningful regression tests with independent expected results. Do not use test counts as a correctness oracle.
 
-## 11. Mandatory acceptance matrix
+Exit: baseline identity and scope revision recorded; actionable feature/defect map; cancelled job reconciled; old claims clearly historical. No readiness claim.
 
-Each claim maps to actual verification IDs/artifacts. Infrastructure absence creates a prerequisite/blocker; no required skip passes.
+### N01 - Repair calculation contracts and evidence identity
 
-| ID | Requirement | Minimum proof |
+Dependencies: N00.
+
+1. Validate every financial entry point: reject bool-as-number, non-finite/negative values, malformed or crossed/unsorted books, unsupported symbols/currencies and incomplete metadata. Zero fees and zero thresholds remain valid where specified.
+2. Use actual venue instruments, increments, minimum sizes/notionals and currency-aware fees. Remove universal hardcoded taker rates from monitor/sidecar paths. User overrides carry explicit provenance and apply prospectively.
+3. Implement all-in quote buys, base sells, base/quote fees, supported third-token costs, per-child fixed fees, rounding and residuals using Decimal and per-venue/per-currency ledgers. Unknown conversion/fees/limits must remain unknown.
+4. Define immutable evaluation inputs and separate input validity, economic result and alert eligibility. Enforce freshness, observation alignment and stream integrity before eligibility.
+5. Hash canonical complete prices, quantities, sequence/epoch, instrument metadata, timing needed for decisions, fees, thresholds, inventory/scenario inputs, schema/kernel version and canonical output. Exclude runtime timing noise. Change the kernel/schema version when the recorded semantics change.
+6. Write hand-derived or independently implemented cases for multi-level depth, zero fees, base fees, fixed fees, boundary rounding, dust, insufficient liquidity, incompatible units, invalid/unknown timing and hash sensitivity. Never derive expected output by invoking the same kernel.
+
+Exit: independent arithmetic and conservation checks pass; changed prices/quantities/configurations change the relevant identity; rejected and unknown inputs cannot produce verified eligible results.
+
+### N02 - Repair the shared live acquisition pipeline
+
+Dependencies: N01.
+
+1. Run one persistent async loop for engine I/O. Create, use, reconnect and close each HTTP/CCXT/WebSocket client on its owning loop. Avoid per-fetch asyncio.run and simultaneous cross-loop use from comparison actions.
+2. Declare exact Coinbase and Kraken venue identities, endpoints, supported common spot symbols and metadata. Verify REST/stream equivalence; unsupported markets get clear per-venue results.
+3. Parse numeric JSON fields with Decimal/string precision. Implement Kraken's documented CRC32 formatting and truncate to subscribed depth after every update. Test the official snapshot expected checksum 3310070434 independently of the implementation.
+4. Validate snapshots and deltas before publishing. Check applicable sequence/connection-epoch rules, checksum mismatch, missing snapshot, duplicate/out-of-order messages and reset/reconnect behavior. Do not invent a sequence rule absent from the venue protocol.
+5. On integrity loss, invalidate the book, emit an incident/gap, rebuild from a valid source and only then resume decisions. Record mismatch/failure counts without using corrupted books.
+6. Feed opportunities, diagnostics and comparisons from one coherent acquisition/state pipeline. WebSocket helpers must actually drive the production monitor and temporal observations. Disclose provisional REST fallback and its timing limits.
+7. Bound queues, reconnect backoff and retained depth. Expose real health/coverage and uncertainty; record failures without leaving the UI in a false healthy state. Rebuild after sleep/wake.
+
+Exit: repeated live acquisitions succeed on both supported connectors using production paths; deterministic reconnect, checksum, depth and liveness fixtures pass; no closed-loop errors, duplicate collectors or stale eligible books. Use bounded scenarios, not a long soak.
+
+### N03 - Complete durable storage, archive and replay contracts
+
+Dependencies: N01 and N02.
+
+1. Audit migrations, WAL/transactions and single-writer ownership. Use an atomic OS-backed writer lock and deterministic ownership/release behavior for simultaneous starts and stale-lock recovery.
+2. Persist monitor configuration, fee profiles, alert rules, episodes, incidents, delivery outbox and storage preferences. Recover interrupted intervals explicitly, without deleting or silently replacing existing data.
+3. Persist complete initial books, ordered deltas/epochs, instrument metadata and original decision configuration. Commit content-addressed capture manifests atomically and handle missing/corrupt captures honestly.
+4. Implement real complete replay export/import from preserved inputs, not reconstructed average fill prices. Exact replay requires input/config/kernel and canonical result equality. Re-evaluation keeps the original event immutable.
+5. Retain supported versioned kernels/fixtures. Old incomplete bundles remain inspectable but cannot be relabelled as exact. Unsupported kernels return UNSUPPORTED_VERSION; missing inputs return an explicit incomplete/unknown outcome. No imported executable code.
+6. Implement sanitized sharing with declared omitted inputs and affected capabilities. Prevent traversal, excessive size/expansion, secret leakage and corrupt manifests; validate hashes before use.
+7. Enforce 7-day diagnostic aggregates, 48-hour rolling raw capture and the default 2 GiB raw quota, with separate pinned quota, safe pruning and visible low-space/full conditions. Quotas and retention settings must affect behavior.
+
+Exit: round-trip replay equals the original canonical result; changed captures/configuration cannot falsely match; migration/restart/crash/import/retention fixtures pass; pinned evidence survives pruning.
+
+### N04 - Complete opportunities, diagnostics and notifications
+
+Dependencies: N02 and N03.
+
+1. Persist eligible, rejected, non-positive and unknown decisions with stable IDs, full reason codes, actual currencies, evidence and bounded retention. Coverage gaps must not disappear from denominators.
+2. Drive 500 ms / 1 s / 3 s follow-ups from recorded production observations with sufficient resolution. Hold the original route/amount/settings/scenario fixed. Distinguish continuous, sampled, interrupted and unknown persistence; an empty observation list is not proof of continuity.
+3. Bind the assessment and its evidence to stored events and expose it through IPC/CLI. Verify the disappearance-at-250-ms/recovery-at-750-ms case; restored endpoint quotes do not prove uninterrupted persistence.
+4. Restore episode/cooldown state on restart. Test ordinary price drift, prospective fee/profile changes, disappearance/closure/reopen, repeated launch and unit-aware escalation against Section 6.3.
+5. Connect all specified feed/time/disk/sidecar faults to bounded incident grouping, clean-observation recovery, closure, pin/export and actual offline reproduction. Expose measured distributions, windows, sample counts and unknowns.
+6. Implement the durable notification worker: pending/delivering/delivered/failed/suppressed, bounded retries/backpressure, quiet-mode suppression and uncertain restart reconciliation. Distinguish alert intent from actual successful output.
+7. Verify actual packaged macOS sound/speech resources and command outcomes; report unavailable/failed delivery visibly. Mocked playback only supplements native checks.
+
+Exit: opportunities and incidents originate in real production services; temporal/cooldown/recovery/outbox scenarios pass; recorded exports reproduce actual findings; quiet mode is persistent and changes delivery behavior.
+
+### N05 - Complete the personal cost advisor
+
+Dependencies: N02 and N03.
+
+1. Compare buy quote budgets and sell base quantities with actual symbols/units, venue metadata/fees, coherent depth, precision, limits, VWAP, residuals and rejection/unknown reasons.
+2. Compute amount sensitivity grids using the kernel for every supported amount. Keep ineligible entries visible; no hardcoded cheapest venue or USABLE badge.
+3. Support per-venue/per-currency user-entered balances and fee overrides. Separate unconstrained estimates from feasible/insufficient/unknown inventory. Model explicitly configured later rebalancing costs without assuming instant transfers.
+4. Consume disjoint remaining depth for simultaneous child orders, including repeated children on the same venue; charge each child's fixed fees. Calculate the allocation selected by the slider and expose totals, ledgers and residuals.
+5. Describe delayed child orders as future scenarios with uncertainty, not measured savings. Prevent impossible aggregate acquired/sold quantity and incomplete-child totals masquerading as complete.
+6. Check buy/sell grids, rounding/fee boundaries, shared-depth exhaustion, multi-venue balances and rebalancing with independent fixtures. The one-BTC / two-80-unit counterexample must reject over-consumption.
+
+Exit: ranking/grid/inventory/split outputs are real, unit-correct, reproducible and conserved; GUI and CLI consume the same advisor results.
+
+### N06 - Finish desktop, CLI, IPC and native lifecycle
+
+Dependencies: N04 and N05.
+
+1. Keep the existing Dashboard 3/2/8 and brand assets. Wire all five destinations to the shared engine; remove hardcoded production metrics, conclusions, stub buttons and fake success states.
+2. Overview configures venues, market, budget/units, fee profiles and alert rules; start/pause/resume/stop and prospective updates use actual acknowledged engine state. Show real coverage and errors.
+3. Opportunities support filter/detail/original replay/config comparison and export. Diagnostics show live measurements, incident lifecycle, pin/export/reproduction. Cost Comparison connects editable fees, real grid/inventory/rebalancing/split scenarios.
+4. Settings persist retention/quota, notification/quiet options, formatting, import/export and opt-in login startup. Every enabled action performs its promised operation and survives tab changes and app restart.
+5. Native mode must never switch automatically to fixtures on an error. Separate explicitly selected demo state from disconnected/error/partial states, and make status/data provenance atomic. Keep recorded real evidence available offline. Reject invalid configuration rather than returning invented results.
+6. Define and validate typed/versioned/bounded IPC requests, responses and events. Preserve decimal strings. Handle timeouts, late results, cancellation and recovery without freezing the WebView or leaking pending requests. Concurrent comparisons and monitor updates use safe storage/I/O ownership.
+7. Complete supported headless monitor/export/import/replay/diagnostics/cost CLI actions with help, exit codes and identical domain behavior. Do not retain competing prototype paths that bypass repaired contracts.
+8. Test both themes and 320/768/1024/1440 widths, keyboard/focus/labels/zoom/reduced motion. Use Lucide, semantic HTML, readable contrast, proper units and the owner's supplied UI rules.
+9. Verify native cold launch, single instance, pause/resume, settings reload, sidecar failure/recovery, sleep/wake, actual notifications, upgrade/data migration and clean quit with no orphan process. Use the installed app, not a direct sidecar invocation as a substitute.
+
+Exit: complete first-launch -> configure -> real monitor -> inspect -> change profile -> replay original -> compare/split -> export/import -> pause -> quit/relaunch journey on the actual desktop app; CLI parity and explicit demo/error behavior proven.
+
+### N07 - Repair automated gates and perform bounded product validation
+
+Dependencies: N06.
+
+1. Pin Python runtime/dev dependencies with hashes and transitive/native inputs; preserve npm/Cargo locks and architecture-specific build provenance. Verify fresh environment setup outside the synced development venv as needed.
+2. Fix offline/live/native/release verifiers. Fail on missing checks, required skips, unsupported environment, incomplete scenarios, zero usable live data, signature/notarization failures and source mismatch. A manifest with no required artifacts must fail.
+3. The live verifier must execute its declared scenarios using production services, not issue one request and echo a requested duration. Keep fixture, live, browser, native and package evidence distinct.
+4. The native verifier must drive the real installed shell and user actions, not substitute a bundled sidecar ping. Collect version/process/state/error and artifact identity without relying on screenshots alone.
+5. Replace R12 formal soak gating with bounded scenario checks: multiple live cycles per venue, start/pause/resume/stop, recoverable disconnect/reconnect, sidecar stop/recovery, persisted restart, safe invalid data, archive/queue/resource bounds and clean shutdown. Exercise at least 10 completed live acquisition cycles per connector and 100 deterministic production-service cycles for leak/queue/retention boundaries. Scenario results and valid data determine acceptance, not a mandatory elapsed duration.
+6. Missing network or a venue outage is an explicit environmental limitation, not a green result. Continue independent deterministic work; verify live scenarios when usable data is available. Profitable real opportunities are not required.
+7. Include adversarial tests for the verifier itself: all venue samples failing, prematurely terminated scenarios, disabled required paths, empty manifests, mismatched artifacts and synthetic data offered as native/live evidence must return nonzero.
+8. Run clean type/lint/unit/integration/replay/IPC/UI/build checks, then authorized candidate CI at the same source identity. Repair workflow input/architecture/build order, runner compatibility and Tauri bundling. Do not use existing generated binaries to hide a failed rebuild.
+
+Exit: all required deterministic and bounded real-product scenarios have applicable evidence; faulty or missing prerequisites cannot pass a gate; no 24-hour or fixed long-duration run is required.
+
+### N08 - Build, sign, install and audit the release
+
+Dependencies: N07; signing/host/remote prerequisites may be prepared earlier without blocking independent coding.
+
+1. Freeze one clean committed source, runtime/config/locks/schema/kernel/app ID/version and manifest after functional repairs. Build separate arm64 and x86_64 app/DMG assets from that source with matching Python/native wheels and Rust target.
+2. Select one coherent packaging path. Reuse PyInstaller onefile if it meets the runtime contract; do not force a rewrite solely because earlier documentation mentioned onedir. Tauri configuration, resource paths, CLI architecture names and release workflow must agree.
+3. Implement actual Developer ID nested signing and hardened-runtime options, accepted notarization, stapling and Gatekeeper checks. The presence of a certificate secret or a log message is not signing. Ad hoc artifacts remain development intermediates.
+4. Use existing securely stored, owner-designated credentials only within recorded authorization. Do not ask for secret values in chat or purchase/enroll accounts. Finish all independent preparation before presenting an external prerequisite.
+5. Test quarantined clean-user installation and the native functional journey without developer Python/Node/Rust. Validate both declared architectures and minimum supported macOS; cross-compilation/Rosetta/newer-host checks are scoped evidence, not proof of unavailable native hosts. No Intel hour-long run is needed.
+6. Verify upgrade/settings/events preservation, manual installation/update/uninstallation, resources/CA certificates and offline recorded evidence. Runtime artifacts must have no enabled test server or fake IPC.
+7. Deliver exact corresponding source, dependency/license notices, checksums, aggregate manifest, accurate privacy/support/install documentation and truthful release notes. Update README to delivered behavior and remove obsolete readiness claims after preserving history.
+8. Complete the R01-R15 matrix with current candidate/config/artifact bindings and all F01-F08 resolutions. Use independent review when explicitly authorized and available; never invent reviewer results. Otherwise record a separate critical review pass and its limits.
+9. Set PUBLIC_RELEASE_READY only after all required rows and channel checks are proven. If trusted user authorization covers publication, journal/reconcile existing tags/releases, publish verified assets once and check remote download hashes; otherwise present the concrete target/version/assets/hashes and any final authorization needed. Never publish the old known-broken candidate or silently replace an existing version.
+
+Exit: complete implemented product and installable, signed/notarized distribution with verified source correspondence and native results. PUBLISHED additionally requires real authorized remote assets and matching downloaded hashes.
+
+### Task dependency summary
+
+| Task | Dependencies | Primary output |
 |---|---|---|
-| R01 | Input/time/config/cooldown correctness | Section 2.3 regressions, invalid books, timestamp semantics, restarted cooldown, quiet mode, finite CLI arguments |
-| R02 | Calculation kernel | Hand-derived buy/sell/fee/precision fixtures, base sell and per-child fixed fees; budget and per-venue/currency conservation; depth/limits/residuals/units |
-| R03 | Two real public spot connectors | Metadata/markets and live ticker/book/stream; identity, connector-specific sequence/checksum/depth integrity, gap/resync, unchanged-live vs stalled channel, honest fallback |
-| R04 | Durable capture/replay foundation | Kill/restart transaction tests, migration restore, atomic archives, two identical replay hashes, corruption/gap handling |
-| R05 | Complete opportunity capability | Positive/negative/rejected/unknown; every delay; continuous vs sampled persistence including 250-ms disappearance/750-ms recovery, threshold/profile/gap fixtures; complete replay vs sanitized limits; versioned replay |
-| R06 | Complete diagnostics | Every fault detected with declared rules/counts/windows; visible incident grouping/recovery/closure/pin/export; offline bundle reproduces expected findings |
-| R07 | Complete cost advisor | Buy/sell grid, fees/units/limits, ineligible reasons, inventory/rebalance and split-depth conservation |
-| R08 | Complete consumer UI | All destinations/states/themes/widths, accessibility/dials/before-after; installed first-launch configuration/change/original replay/pause/restart journey |
-| R09 | Native lifecycle/recovery | Installed start/quit/single-instance; sidecar/feed/disk/notification errors; restart/pause/sleep-wake |
-| R10 | Privacy/security | No unexpected egress/trading/telemetry; CSP/capabilities; unsafe import and secret/export checks; dependency/license review |
-| R11 | Clean reproducible automated gates | Fresh install/locks, lint/type/unit/integration/replay/IPC/UI/build checks, CI at candidate identity; required skips fail |
-| R12 | Continuous-run reliability | One uninterrupted 24-hour awake-host live profile, final bound report, resources/coverage and separate induced-fault recovery |
-| R13 | Installable compatibility | macOS 13+ evidence, arm64 and x86_64 builds and native checks on both; no developer runtime required |
-| R14 | GitHub distribution readiness | Developer ID signing, accepted notarization, stapling, Gatekeeper, quarantined clean-user install; GPL/notices/matching source |
-| R15 | Final evidence and audit | Candidate/config/artifact bindings, every row proven, three review roles resolved/revalidated, truthful materials, no required prerequisite missing |
+| N00 | None | Reconciled baseline, cancellation, defect/feature map |
+| N01 | N00 | Correct kernel, validity states, complete hashes |
+| N02 | N01 | Persistent production acquisition and integrity |
+| N03 | N01, N02 | Durable state, captures, complete replay/import |
+| N04 | N02, N03 | Opportunity/follow-up/diagnostics/notification workflows |
+| N05 | N02, N03 | Real cost/grid/inventory/rebalancing/split advisor |
+| N06 | N04, N05 | Complete GUI/CLI/IPC/native journeys |
+| N07 | N06 | Honest automated and bounded product validation |
+| N08 | N07 | Frozen distribution, installation and final audit |
 
-Positive-profit events need not occur in real markets. Synthetic positive fixtures independently validate behavior and remain labeled synthetic. No actual-fill profitability claim is an acceptance condition.
+## 11. Revised mandatory acceptance matrix
 
-## 12. Commands, evidence and continuous run
+Only evidence applicable to the repaired candidate can prove a row. The numerical counts from the review are baseline evidence, not required counts to manufacture or a substitute for coverage.
 
-Current commands run now. TARGET commands must be implemented/documented by the future agent; they do not exist yet. Resolve invocation paths and record actual commands in evidence.
+| ID | Requirement | Minimum direct proof |
+|---|---|---|
+| R01 | Input/time/config/cooldown correctness | Invalid/non-finite/unit/time fixtures; prospective settings; restart-restored cooldown/quiet behavior |
+| R02 | Calculation and conservation | Independent buy/sell/base/quote/fixed-fee/depth/rounding/residual ledgers; repeated-child depth exhaustion |
+| R03 | Two real public spot connectors | Actual metadata and repeated production REST/WS acquisition; exact venue identity, subscribed depth, official checksum and reconnect/invalidation |
+| R04 | Durable capture/recovery | Atomic writes, migration/kill/restart/lock/retention/disk fixtures; original inputs survive |
+| R05 | Complete opportunities and replay | Real event capture; fixed-scenario 500 ms/1 s/3 s assessments with unknown coverage; exact canonical replay; config comparison, complete/sanitized imports and version limits |
+| R06 | Complete diagnostics | Measured distributions/counts/windows; induced fault -> grouping -> recovery/closure -> pin/export -> real offline reproduction |
+| R07 | Complete cost advisor | Real buy/sell grid, editable fees, venue/currency balances, inventory/rebalancing and split conservation |
+| R08 | Complete consumer UI | Every enabled control works; themes/widths/accessibility; atomic real/demo/error provenance; persistent settings and native full journey |
+| R09 | Native lifecycle | Installed shell start/quit/single-instance, sidecar recovery, repeated acquisition, pause/resume, sleep/wake, real notification outcomes |
+| R10 | Privacy/security | Minimal CSP/capabilities, command and public-host scope, bounded safe imports/exports, no telemetry/trading/secret leakage, dependency/license review |
+| R11 | Reproducible automated checks | Locked fresh setup, lint/type/unit/integration/replay/IPC/UI/build, verifier-negative cases and authorized exact-candidate CI; no required skip |
+| R12 | Bounded operational correctness | Completed N07 real repeated-acquisition and deterministic resource/recovery scenarios; no fixed-duration soak or long wait |
+| R13 | Installable compatibility | Declared minimum macOS and arm64/x86_64 native install/journey evidence; no developer runtime; upgrade preservation |
+| R14 | GitHub distribution readiness | Developer ID, accepted notarization, stapling/Gatekeeper, quarantined clean-user install; verified required assets and exact matching source/notices |
+| R15 | Final current audit | Every active N task and R row justified; F01-F08 resolved; candidate/config/runtime/assets bound; honest docs and no unresolved release blocker |
 
-Current baseline:
+Real profitable events are unnecessary. Label synthetic positive fixtures explicitly; estimates and replay do not prove fills or trading profitability. R12's original 24-hour requirement was removed by the owner, not completed or passed. Historical extra R16-R19 rows may be retained with scope/applicability notes, but they do not create new fixed-duration release gates or override R01-R15.
 
-```sh
-git status --short --branch
-git diff
-git diff --cached
-git log -5 --oneline
-PYTHONDONTWRITEBYTECODE=1 venv/bin/python -m unittest discover -s tests -v
-```
+## 12. Commands, evidence and validation workflow
 
-TARGET setup from repository root:
+Inspect help/options and actual prerequisites before running a command. Implement missing contracts; do not report them as already available. Preserve output under a new verification ID rather than overwriting a historical report.
+
+### 12.1 Setup and development checks
+
+Target reproducible setup (create the missing locks during N07):
 
 ```sh
 python3.12 -m venv .venv
@@ -392,40 +506,42 @@ python3.12 -m venv .venv
 npm --prefix desktop ci
 ```
 
-TARGET verification/release contracts:
+The current .venv symlink is an existing working environment; do not blindly recreate it. Use a fresh isolated environment for reproducibility verification and record its path/tool inputs.
+
+Representative validation:
 
 ```sh
-.venv/bin/python -m pytest tests/unit tests/integration tests/replay -q
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest tests/unit tests/integration tests/replay -q
 npm --prefix desktop run typecheck
 npm --prefix desktop run test
 npm --prefix desktop run test:e2e
-.venv/bin/python scripts/verify.py --gate offline --output .agent/evidence/offline
-.venv/bin/python scripts/verify.py --gate live --duration 600 --output .agent/evidence/live
-.venv/bin/python scripts/verify.py --gate native --app /path/to/OhMyCrypto.app --output .agent/evidence/native
-.venv/bin/python scripts/soak.py --duration 86400 --profile release-v1 --output .agent/evidence/soak24
-.venv/bin/python scripts/release.py prepare --version 1.0.0 --channel github --output release/candidate
+npm --prefix desktop run build
+.venv/bin/python scripts/verify.py --gate offline --output .agent/evidence/<new-id>/offline
+.venv/bin/python scripts/verify.py --gate live --output .agent/evidence/<new-id>/live
+.venv/bin/python scripts/verify.py --gate native --app /path/to/installed/OhMyCrypto.app --output .agent/evidence/<new-id>/native
+.venv/bin/python scripts/release.py prepare --version 1.0.0 --channel github --arch arm64 --output release/candidate
+.venv/bin/python scripts/release.py prepare --version 1.0.0 --channel github --arch x86_64 --output release/candidate
+.venv/bin/python scripts/release.py aggregate --version 1.0.0 --channel github --output release/candidate
 .venv/bin/python scripts/release.py verify --manifest release/candidate/manifest.json
 ```
 
-The native verifier drives the actual installed application with supported platform automation and collects process/filesystem outputs. Missing automation permission is a prerequisite, not permission to substitute mocked browser results. Implement script help, architecture selection, setup and all lint/type/build checks.
+Add lint and scenario-selection commands as implemented, document actual supported options and retain original valid interfaces where possible. Do not blindly run prepare twice into a location that destroys the other architecture's files; stage per architecture and aggregate verified assets.
 
-Verifiers return nonzero for failures, required skips, missing checks, unsupported environment or insufficient coverage. Reports enumerate inputs/checks/outcomes/failures/skips/reasons/artifacts; passed=true alone is insufficient.
+### 12.2 Bounded operational scenarios, replacing the cancelled soak
 
-Each evidence record includes verification/requirement/task IDs, subject commit, pre-freeze dirty manifest if any, relevant source/input/config hashes, tools/runtime, platform/architecture, command, timestamps, exit status, check outcomes, coverage and artifact hashes. Preserve stdout/stderr and actual reports. Never manually edit result fields to manufacture a pass.
+Run the actual production service/app through repeated public-market acquisitions and the N07 lifecycle/recovery/resource scenarios. Use explicit scenario completion, bounded attempt budgets and usable observations. At least 10 completed live cycles per supported connector and 100 deterministic service cycles cover recurrence and bounded-resource behavior; these counts do not establish long-term reliability. Retry an environmental failure explicitly, without silently stretching it into a long job or counting failed/unknown data as usable.
 
-Reopen dependent checks when source/dependencies/config/schema/fixtures change. Keep a dependency map; preserve old runs with explicit applicability. Final evidence binds a committed clean candidate and frozen locks/settings. Signing changes reopen package/channel checks even if domain tests stay applicable.
+No 86400-second command, fixed 24-hour report, fixed Intel 60-minute run or long-duration standby is required. Do not start one. `scripts/soak.py` may be retained as an optional development utility with truthful exit conditions, but it is excluded from required release dependencies and automation. CI may run bounded scenarios; it must not require the owner to wait for a soak.
 
-### 12.1 Uninterrupted 24-hour gate
+Keep fault injection deterministic and isolated where possible. Native/browser instrumentation supplements production checks and must be disabled in distributed artifacts. Clock jumps, sleep/wake, disconnect, malformed frames, disk limits and process death need actual appropriate evidence; a test of a parser alone is not an installed-app lifecycle test.
 
-Run 86400 seconds on the arm64 release candidate with both public venues, an agreed common spot pair, frozen release configuration and all three services enabled. Intel requires the full native install/lifecycle/compatibility suite and a 60-minute live run on its installed signed/notarized production x86_64 candidate, with instrumentation disabled, the same applicable coverage/resource/error criteria, and a final bound report. Record shell/sidecar/resources/dependencies hashes in addition to commit/config, process/session identity, monotonic duration, heartbeats, sleep/wake, gaps, metrics, queues/storage/events and resources. The formal runs use production candidates with test instrumentation disabled; missing signing/host access blocks these final gates while independent work continues.
+### 12.3 Honest reports and candidate binding
 
-The host must stay awake on power/network. Use scoped wake prevention only when permitted; never alter permanent power settings. Sleep, application restart, process crash or missing recorder invalidates the continuous window. Preserve failure evidence and begin a new full window after recovery. Separate windows cannot be added together.
+Verifiers return nonzero for failures, required skips, missing checks, invalid artifacts, unsupported environment or incomplete/zero-data scenarios. `passed=true`, a PID, existing files, minimum test counts and unchanged prices alone are insufficient proof.
 
-Pass conditions: no unhandled crash, invalid financial output, silent decision/incident loss, corrupt archive/database, unintended duplicate notification or unbounded resources. Default engine RSS <=512 MiB; combined app <=1 GiB; no sustained >25% unexplained growth between comparable post-warmup windows. Record CPU/input rate/hardware. Version justified threshold changes before rerunning, not after failure to obtain green results.
+Each record includes verification/requirement/task IDs, subject commit and dirty manifest if any, source/input/config/runtime/artifact hashes, command/tools/platform/architecture, timestamps/exit status, individual outcomes and explicit coverage/failures/skips/reasons. Keep fixture/live/browser/native/package categories visible. Never manually edit a report's outcome.
 
-Venue outages may be safely recovered without product failure, but coverage remains explicit. Require >=95% usable observation time per venue; define usable time/gaps, not just request counts. Lower coverage is insufficient external-data evidence requiring another full window. Profitable events are unnecessary. Deliberate failures and sleep/wake tests run separately.
-
-The completed final report with actual metrics/hashes is mandatory. RUNNING, a PID or partial heartbeats cannot pass R12. Relevant source/config changes invalidate the window's binding. Unchanged files alone do not prove continuous liveness.
+Reopen affected gates when source/locks/config/schema/kernel/fixtures/artifacts change. Final acceptance uses a clean frozen candidate. Signing alters artifacts and reopens package/channel checks. The cancelled report remains cancelled regardless of a buggy passed flag; its applicability is superseded by the owner change and cancellation record.
 
 ## 13. Autonomous execution and continuity
 
@@ -439,7 +555,7 @@ Check Python/Node/Rust/tools, using project-local environments and pinned versio
 
 ### 13.2 Canonical state
 
-The future agent creates `.agent/EXECUTION_STATE.json`. This guide owns requirements/task definitions. State owns progress, applicability, budgets, decisions, authorization, jobs and retries. HANDOFF.md is a replaceable generated summary, not a second task database.
+Reconcile the existing `.agent/EXECUTION_STATE.json`; preserve history and do not initialize over it. This guide owns requirements/task definitions. State owns progress, applicability, budgets, decisions, authorization, jobs and retries. HANDOFF.md is a replaceable generated summary, not a second task database.
 
 Initialization schema example:
 
@@ -447,7 +563,7 @@ Initialization schema example:
 {
   "schema_version": 1,
   "project_id": "OhMyCrypto",
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "spec_hash": "sha256-of-guide",
   "run_id": "uuid",
   "generation": 0,
@@ -473,7 +589,7 @@ This is an example, not current state or an authorization grant. On the implemen
 
 The remote_candidate_writes field defaults false. If the owner explicitly authorizes a dedicated codex/ branch and draft PR in JeremyL691/OhMyCrypto, record that source and enable only those operations; never infer merge/public-release permission. R11 must either use that authorized candidate CI or remain unproven until remote access is authorized and exercised.
 
-Populate T00-T11 with section 10 dependencies and R01-R15 with evidence references. Lifecycle: pending -> in_progress -> verifying -> done, plus blocked and owner-approved cancelled. Required cancelled tasks still block completion until a specification change reconciles scope. done needs applicable proof.
+Populate active N00-N08 with section 10 dependencies and the revised R01-R15 with evidence references. Preserve T00-T18 in task history, with T18 owner-cancelled. No historical done flag can dispatch completion of a new task. Lifecycle: pending -> in_progress -> verifying -> done, plus blocked and owner-approved cancelled. Required cancelled tasks still block completion until a specification change reconciles scope. done needs applicable proof.
 
 Atomic writes with generation checks; only lead updates shared status. Require one active lead lease with owner/session, expiry and verified liveness; stale leases need reconciliation before takeover. Atomically reserve task/logical invocation before dispatch and immediately recheck candidate, prerequisites, authorization and budgets. A lead restart must reconcile reserved work and real handles before new dispatch. Delegates submit artifacts/findings with subject hashes and isolated ownership. Reject stale updates. Checkpoint at milestones, dispatch/completion, external actions and every 15 minutes. Keep backups and validate schema/DAG.
 
@@ -483,7 +599,7 @@ Atomic writes with generation checks; only lead updates shared status. Require o
 2. Resume reconciled in_progress/verifying work before selecting new pending tasks with done dependencies. Reopen a blocked task only after verifying its prerequisite changed; continue independent eligible work around remaining blockers.
 3. Implement a coherent slice advancing the full task.
 4. Run checks with independent expectations, preserve output, fix failures and rerun affected checks.
-5. Obtain independent integration/release review, resolve and verify findings.
+5. Perform critical integration/release review, using independent reviewers when the host/user authorizes delegation; resolve and verify findings. Do not describe self-review as independent.
 6. Checkpoint state/handoff and continue without routine approval requests.
 7. Audit every original requirement before completing the goal.
 
@@ -493,7 +609,7 @@ Separate host_limit from persistent project_budget. Runtime switches do not rese
 
 ### 13.4 Long jobs and recovery
 
-Job records require task ID, stable logical invocation ID, candidate/config, command, PID/tool/session, process-start identity, state, last verified liveness time, output location, retry/failure class, next eligible retry time and final artifact reference. Register reservation before invocation, then actual handle. Marker files and commentary are not liveness evidence. On observation timeout inspect the same handle; never restart a possibly active soak/build/notarization merely because polling timed out.
+Job records require task ID, stable logical invocation ID, candidate/config, command, PID/tool/session, process-start identity, state, last verified liveness time, output location, retry/failure class, next eligible retry time and final artifact reference. Register reservation before invocation, then actual handle. Marker files and commentary are not liveness evidence. On observation timeout inspect the same handle; never restart a possibly active build/notarization merely because polling timed out.
 
 Use bounded waits and meaningful updates. Supported goal continuation may keep the agent working, but a prompt cannot wake an exited process, collect through host sleep or bypass limits. Cross-session continuation needs a real supported scheduler/supervisor plus shared files/Git. Create automation only with explicit authorization; otherwise record the missing host capability and retain resumable state.
 
@@ -511,7 +627,7 @@ Local checks/build retries need no repeated approval. Publication/credentials/sp
 
 Build separate aarch64-apple-darwin and x86_64-apple-darwin artifacts. Shell/interpreter/sidecar/native wheels must match; Rust target selection alone cannot convert Python architecture. Use native compatible builders/test hosts and record minimum OS/library compatibility. A newer host does not prove macOS 13 support.
 
-Freeze source commit, settings/locks, schemas, app ID/version and input manifest. Bundle onedir Python resources/entry using current Tauri contracts. Verify hidden imports, CA certificates, paths, permissions and process lifecycle. Sign nested code with correct identity/hardened-runtime configuration; changes to signed contents require verification again.
+Freeze source commit, settings/locks, schemas, app ID/version and input manifest. Bundle the verified Python sidecar resources/entry using current Tauri contracts, retaining onefile if it satisfies the installed runtime and signing requirements. Verify hidden imports, CA certificates, paths, permissions and process lifecycle. Sign nested code with correct identity/hardened-runtime configuration; changes to signed contents require verification again.
 
 Implement repeatable prepare/build/sign/notarize/staple/verify. Keep credential references secure. Require signatures, accepted notarization, stapled ticket, Gatekeeper and quarantined clean-user installation without developer tools. Disabling Gatekeeper is not the consumer installation path.
 
@@ -521,50 +637,32 @@ Installed app opens offline for saved/demo evidence with network limitations vis
 
 Publication requires explicit destination/version/artifact authorization; local preparation continues without it. If authorized later, journal/reconcile existing tags/releases, upload verified assets once, inspect remote version/links and verify hashes. Never silently replace a published version. Attach any created implementation PR when required by host tools.
 
-## 15. Reviews and completion audit
+## 15. Completion review and final audit
 
-For this documentation assignment, write the guide/prompt first, then request three independent sub-agent roles: product/full scope; technical calculations/data/replay/packaging; autonomy/evidence/release. Incorporate valid findings and recheck affected sections. Those reviews prove plan quality, not implementation.
-
-Future implementation repeats these roles on actual code and frozen candidate. Reviewers inspect current sources/actual reports, not only the lead's summary. Resolve blocking findings and rerun impacted checks.
-
-### 15.1 Documentation review record
-
-Three independent reviewers inspected the written files on October 5, 2026, then rechecked revisions. Their scope was documentation only.
-
-| Role | Findings incorporated | Recheck |
-|---|---|---|
-| Product scope | Fixed-scenario continuous vs sampled persistence; incident lifecycle; complete vs sanitized exports; desktop monitor configuration journey | All reported scope/acceptance findings resolved |
-| Technical plan | Per-currency fee ledgers; connector integrity/decimal/checksum depth; liveness clocks; supported replay kernels; runtime binding | All five technical findings resolved |
-| Autonomy/release | Non-circular task gates; pre-verification freeze; lead lease/reservations; job/action identity; resumed task handling; Intel production-run evidence | Major findings resolved; final minor wording/permission synchronization incorporated |
-
-No review result establishes implemented-product completion. The remote candidate-write decision is recorded separately from publication and must match the owner's response, never reviewer preference.
-
-### 15.2 Final implementation audit
+Review actual source, runtime, installed app and reports rather than trusting the implementing agent's checklist. Where authorized tools allow independent agents, use reviewers for product coverage, technical correctness and release/evidence. A separate self-review is useful but must not be described as independent review. No review is already passed for the repaired candidate.
 
 Final audit:
 
-1. Re-read original objective, owner decisions, instructions and guide.
-2. Enumerate R01-R15/T00-T11, all named commands/artifacts/invariants/channel conditions.
-3. Inspect authoritative source/runtime/installed app/CI/reports and candidate/input/config bindings.
-4. Classify each proven, contradicted, incomplete, indirect or missing; only proven counts.
-5. Resolve/reopen and continue until all required items are proven, preserving scope.
-6. Ensure no required skip, missing prerequisite, unresolved review, unfinished gate or unrelated dirty candidate change remains.
-7. Produce final matrix, candidate/artifact identity, platforms, coverage/resources and limits.
-8. Set PUBLIC_RELEASE_READY and complete the implementing goal only after all readiness gates pass; if separately authorized, verify publication and set PUBLISHED.
+1. Re-read the owner's revised scope: full product completion; cancelled T18; no fixed-duration soak.
+2. Enumerate N00-N08, R01-R15 and F01-F08 with source/tests/scenarios/artifact evidence.
+3. Inspect the frozen source, dependencies/settings, production runtime, native journeys, CI and exact signed/notarized files.
+4. Classify each requirement as proven, contradicted, incomplete, indirect or missing. Only directly applicable evidence proves completion.
+5. Resolve findings, reopen dependent checks and rerun them. Preserve historical reports; do not replace evidence with documentation claims.
+6. Confirm that all enabled UI/CLI actions work, demo data never masquerades as real, scenarios finish honestly, and the cancelled task cannot be resumed by an automatic completion rule.
+7. Produce a final feature/requirement matrix, candidate/runtime/assets/checksums, platforms/install outcomes and remaining limits. No long-run reliability claim follows from bounded scenarios.
+8. Set PUBLIC_RELEASE_READY only after complete product and selected-channel checks. PUBLISHED requires authorized actual remote release verification. If a real external prerequisite remains, report it precisely and keep the work resumable; finish all independent work first.
 
-Follow the host goal-blocking threshold for real external conditions. Never complete because usage/turn ends or a partial handoff exists. Document review cannot establish actual unattended execution/recovery; those claims need live host evidence.
+## 16. Documentation and handoff hygiene
 
-## 16. Documentation cleanup
+Keep three entry documents: README for delivered behavior and user installation; this guide for the active specification and development order; AGENT_PROMPT for copyable execution instructions. Execution state owns progress, jobs, authorization, budget, retry lineage and evidence applicability. HANDOFF is a generated current summary, not another specification.
 
-Keep three entry docs: README for actual status/install, this guide for specification/execution, AGENT_PROMPT for handoff. State/evidence are records, not competing roadmaps.
+Update README when the repaired behavior is proven; until then describe the development state honestly. Include necessary license/privacy/support/security/install material for the actual distribution. Remove stale zero-defect/release-ready claims from current summaries without deleting original historical records. Do not create a second conflicting completion roadmap.
 
-README was the only existing project document at preparation. It was rewritten in place to remove stale Python support and overconfident freshness/cooldown claims, distinguish prototype from intended release and link guidance. No redundant project docs existed to delete. Do not remove code/tests/environments/dependencies/CodeGraph/user evidence to produce a cleanup count.
-
-During implementation update README to delivered behavior; add essential GPL/privacy/user/security notices for concrete distribution requirements. Remove superseded plans after migrating unique requirements and fixing links. Keep acceptance definitions here rather than divergent checklists.
+The current state must keep T18 cancelled and the owner change recorded across restarts. Preserve original task/evidence history and existing authorization/budgets. A report emitted after cancellation cannot turn a cancelled task into a passed release gate.
 
 ## 17. Primary references
 
-Recheck current locked-version documentation at T00/T01 and packaging. References inform design, not this project's gate results. Never blindly execute examples or expose credentials.
+Recheck current locked-version documentation at N00/N02/N08 and packaging. References inform design, not this project's gate results. Never blindly execute examples or expose credentials.
 
 - [CCXT manual](https://github.com/ccxt/ccxt/wiki/manual): markets, timestamp caveats, fees, precision, limits and rates.
 - [Tauri external binaries](https://v2.tauri.app/develop/sidecar/): naming/configuration/process integration.

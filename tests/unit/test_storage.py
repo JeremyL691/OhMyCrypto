@@ -4,6 +4,7 @@ from decimal import Decimal
 import os
 import sqlite3
 import tempfile
+import time
 import pytest
 
 from ohmycrypto.domain.models import (
@@ -158,3 +159,33 @@ def test_database_corruption_handling():
 
         with pytest.raises(DatabaseCorruptionError):
             create_connection(db_path)
+
+
+def test_pinned_capture_survives_pruning_and_quota():
+    """Verify pinned captures survive pruning while unpinned old captures are removed."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        arch = ArchiveManager(archive_dir=tmpdir, quota_bytes=10000)
+        p1 = {"type": "unpinned_data"}
+        p2 = {"type": "pinned_data"}
+
+        h1 = arch.write_capture(p1, is_pinned=False)
+        h2 = arch.write_capture(p2, is_pinned=True)
+
+        assert arch.is_capture_pinned(h2) is True
+        assert arch.is_capture_pinned(h1) is False
+
+        # Simulate age older than 48 hours for both files
+        shard1 = os.path.join(tmpdir, h1[:2], f"{h1}.json")
+        shard2 = os.path.join(tmpdir, h2[:2], f"{h2}.json")
+        old_time = time.time() - (50 * 3600)
+        os.utime(shard1, (old_time, old_time))
+        os.utime(shard2, (old_time, old_time))
+
+        pruned = arch.prune_old_captures(max_age_seconds=48 * 3600)
+        assert pruned == 1
+        assert arch.read_capture(h1) is None
+        assert arch.read_capture(h2) == p2  # Pinned capture preserved!
+
+        status = arch.get_quota_status()
+        assert status["pinned_bytes"] > 0
+        assert status["total_bytes"] == status["pinned_bytes"]

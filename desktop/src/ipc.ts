@@ -145,24 +145,14 @@ async function sidecarCall<T>(action: string, payload: Record<string, unknown> =
   return await invoke<T>("sidecar_request", { action, payload });
 }
 
-function isSidecarFailure(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return (
-    msg.includes("sidecar") ||
-    msg.includes("IPC") ||
-    IS_TAURI === false
-  );
-}
-
-let sidecarReachable = IS_TAURI;
-
 export const api = {
   async getStatus(): Promise<EngineStatus> {
-    if (sidecarReachable) {
+    if (IS_TAURI) {
       try {
         return await sidecarCall<EngineStatus>("get_status");
-      } catch {
-        sidecarReachable = false;
+      } catch (err) {
+        // In native mode, if status call fails, throw so App handles error visibly
+        throw err;
       }
     }
     return {
@@ -176,13 +166,8 @@ export const api = {
   },
 
   async startMonitor(symbol: string, budget: string): Promise<EngineStatus> {
-    if (sidecarReachable) {
-      try {
-        return await sidecarCall<EngineStatus>("start_monitor", { symbol, budget });
-      } catch (err) {
-        if (!isSidecarFailure(err)) throw err;
-        sidecarReachable = false;
-      }
+    if (IS_TAURI) {
+      return await sidecarCall<EngineStatus>("start_monitor", { symbol, budget });
     }
     throw new Error("Engine sidecar unavailable; monitoring requires the installed application.");
   },
@@ -200,61 +185,209 @@ export const api = {
   },
 
   async getOpportunities(): Promise<OpportunityItem[]> {
-    if (sidecarReachable) {
-      try {
-        const res = await sidecarCall<{ opportunities: OpportunityItem[] }>("get_opportunities", { limit: 50 });
-        return res.opportunities;
-      } catch {
-        sidecarReachable = false;
-      }
+    if (IS_TAURI) {
+      const res = await sidecarCall<{ opportunities: OpportunityItem[] }>("get_opportunities", { limit: 50 });
+      return res.opportunities;
     }
     return [...FIXTURE_OPPORTUNITIES];
   },
 
   async getIncidents(): Promise<IncidentItem[]> {
-    if (sidecarReachable) {
-      try {
-        const res = await sidecarCall<{ incidents: IncidentItem[] }>("get_incidents", { limit: 50 });
-        return res.incidents;
-      } catch {
-        sidecarReachable = false;
-      }
+    if (IS_TAURI) {
+      const res = await sidecarCall<{ incidents: IncidentItem[] }>("get_incidents", { limit: 50 });
+      return res.incidents;
     }
     return [...FIXTURE_INCIDENTS];
   },
 
-  async compareCosts(side: "buy" | "sell", amount: string, symbol: string): Promise<CostComparisonResult[]> {
-    if (sidecarReachable) {
-      try {
-        const res = await sidecarCall<{ results: CostComparisonResult[] }>("compare_costs", { side, amount, symbol });
-        return res.results;
-      } catch {
-        sidecarReachable = false;
-      }
+  async getDiagnostics(): Promise<{ incidents: IncidentItem[]; latencies?: Record<string, import("./types").LatencyDistribution> }> {
+    if (IS_TAURI) {
+      return await sidecarCall<{ incidents: IncidentItem[]; latencies: Record<string, import("./types").LatencyDistribution> }>("get_diagnostics", { limit: 50 });
     }
-    // Fixture fallback stays explicitly labeled through status.is_demo.
+    return {
+      incidents: [...FIXTURE_INCIDENTS],
+      latencies: {
+        coinbase: { count: 120, p50: 85.0, p95: 142.0, p99: 210.0 },
+        kraken: { count: 150, p50: 62.0, p95: 108.0, p99: 175.0 },
+      },
+    };
+  },
+
+  async getSettings(): Promise<import("./types").SystemSettings> {
+    if (IS_TAURI) {
+      const res = await sidecarCall<{ settings: import("./types").SystemSettings }>("get_settings");
+      return res.settings;
+    }
+    const saved = localStorage.getItem("system_settings");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return {
+      retention_days: 7,
+      raw_quota_gb: 2,
+      audio_enabled: true,
+      speech_enabled: false,
+      quiet_mode: false,
+    };
+  },
+
+  async updateSettings(settings: Partial<import("./types").SystemSettings>): Promise<import("./types").SystemSettings> {
+    if (IS_TAURI) {
+      const res = await sidecarCall<{ settings: import("./types").SystemSettings }>("update_settings", { settings });
+      return res.settings;
+    }
+    const current = await this.getSettings();
+    const updated = { ...current, ...settings };
+    localStorage.setItem("system_settings", JSON.stringify(updated));
+    return updated;
+  },
+
+  async exportReplayBundle(options: { mode: "complete" | "sanitized"; eventId?: string }): Promise<any> {
+    if (IS_TAURI) {
+      return await sidecarCall<any>("export_replay_bundle", options);
+    }
+    const opp = FIXTURE_OPPORTUNITIES[0];
+    return {
+      manifest: {
+        schema_version: "1.0.0",
+        bundle_mode: options.mode,
+        event_id: opp.event_id,
+        timestamp_utc_ms: opp.timestamp_utc_ms,
+        input_hash: opp.input_hash,
+      },
+      opportunity: opp,
+      omissions: options.mode === "complete" ? [] : ["private_balances"],
+    };
+  },
+
+  async compareCosts(
+    side: "buy" | "sell",
+    amount: string,
+    symbol: string,
+    splitRatio: number = 50
+  ): Promise<import("./types").CostComparisonResponse> {
+    if (IS_TAURI) {
+      // In native mode: call sidecar. If it fails, throw visibly (F03).
+      return await sidecarCall<import("./types").CostComparisonResponse>("compare_costs", {
+        side,
+        amount,
+        symbol,
+        split_ratio: splitRatio,
+      });
+    }
+
+    // Fixture fallback ONLY when !IS_TAURI (in web browser / demo mode)
     const amt = parseFloat(amount) || 1000;
     const px = side === "buy" ? 85700 : 85690;
-    return [
-      { venue: "kraken", side, amount, units: side === "buy" ? "USDT" : "BTC", is_complete: true,
-        acquired_base: (amt / px).toFixed(8), quote_spent: (amt * 0.9975).toFixed(2),
+    const results: CostComparisonResult[] = [
+      {
+        venue: "kraken",
+        side,
+        amount,
+        units: side === "buy" ? "USDT" : "BTC",
+        is_complete: true,
+        acquired_base: (amt / px).toFixed(8),
+        quote_spent: (amt * 0.9975).toFixed(2),
         quote_received: (amt * px * 0.9975).toFixed(2),
-        fee_quote: (amt * 0.0025).toFixed(2), fee_base: "0.00", avg_price: String(px), total_cost: amount },
-      { venue: "coinbase", side, amount, units: side === "buy" ? "USDT" : "BTC", is_complete: true,
-        acquired_base: (amt / (px + 20)).toFixed(8), quote_spent: (amt * 0.9975).toFixed(2),
+        fee_quote: (amt * 0.0025).toFixed(2),
+        fee_base: "0.00",
+        avg_price: String(px),
+        total_cost: amount,
+        net_proceeds: (amt * px * 0.9975).toFixed(2),
+      },
+      {
+        venue: "coinbase",
+        side,
+        amount,
+        units: side === "buy" ? "USDT" : "BTC",
+        is_complete: true,
+        acquired_base: (amt / (px + 20)).toFixed(8),
+        quote_spent: (amt * 0.9975).toFixed(2),
         quote_received: (amt * (px + 20) * 0.9975).toFixed(2),
-        fee_quote: (amt * 0.0025).toFixed(2), fee_base: "0.00", avg_price: String(px + 20), total_cost: amount },
+        fee_quote: (amt * 0.0025).toFixed(2),
+        fee_base: "0.00",
+        avg_price: String(px + 20),
+        total_cost: amount,
+        net_proceeds: (amt * (px + 20) * 0.9975).toFixed(2),
+      },
     ];
+
+    const grid: Record<string, CostComparisonResult[]> = {};
+    for (const gAmt of ["100.00", "1000.00", "10000.00"]) {
+      const gVal = parseFloat(gAmt);
+      grid[gAmt] = [
+        {
+          venue: "kraken",
+          side,
+          amount: gAmt,
+          units: side === "buy" ? "USDT" : "BTC",
+          is_complete: true,
+          acquired_base: (gVal / px).toFixed(8),
+          quote_spent: (gVal * 0.9975).toFixed(2),
+          quote_received: (gVal * px * 0.9975).toFixed(2),
+          fee_quote: (gVal * 0.0025).toFixed(2),
+          fee_base: "0.00",
+          avg_price: String(px),
+          total_cost: gAmt,
+          net_proceeds: (gVal * px * 0.9975).toFixed(2),
+        },
+        {
+          venue: "coinbase",
+          side,
+          amount: gAmt,
+          units: side === "buy" ? "USDT" : "BTC",
+          is_complete: true,
+          acquired_base: (gVal / (px + 20)).toFixed(8),
+          quote_spent: (gVal * 0.9975).toFixed(2),
+          quote_received: (gVal * (px + 20) * 0.9975).toFixed(2),
+          fee_quote: (gVal * 0.0025).toFixed(2),
+          fee_base: "0.00",
+          avg_price: String(px + 20),
+          total_cost: gAmt,
+          net_proceeds: (gVal * (px + 20) * 0.9975).toFixed(2),
+        },
+      ];
+    }
+
+    const cbAlloc = (amt * (splitRatio / 100)).toFixed(2);
+    const krAlloc = (amt * ((100 - splitRatio) / 100)).toFixed(2);
+    const split: import("./types").SplitOrderResult = {
+      side,
+      symbol,
+      all_complete: true,
+      total_base: (amt / (px + 10)).toFixed(8),
+      total_spent_or_received: amt.toFixed(2),
+      total_fees_quote: (amt * 0.0025).toFixed(2),
+      total_fees_base: "0.00",
+      effective_avg_price: (px + 10).toFixed(2),
+      children: [
+        {
+          venue: "coinbase",
+          allocated_amount: cbAlloc,
+          acquired_base: ((amt * (splitRatio / 100)) / (px + 20)).toFixed(8),
+          quote_spent: cbAlloc,
+          fee_quote: (parseFloat(cbAlloc) * 0.0025).toFixed(2),
+          is_complete: true,
+        },
+        {
+          venue: "kraken",
+          allocated_amount: krAlloc,
+          acquired_base: ((amt * ((100 - splitRatio) / 100)) / px).toFixed(8),
+          quote_spent: krAlloc,
+          fee_quote: (parseFloat(krAlloc) * 0.0025).toFixed(2),
+          is_complete: true,
+        },
+      ],
+    };
+
+    return { results, grid, split };
   },
 
   async replayEvent(eventId: string, overrideFee?: string): Promise<any> {
-    if (sidecarReachable) {
-      try {
-        return await sidecarCall<any>("replay_event", { event_id: eventId, override_fee: overrideFee ?? null });
-      } catch (err) {
-        if (!isSidecarFailure(err)) throw err;
-        sidecarReachable = false;
-      }
+    if (IS_TAURI) {
+      return await sidecarCall<any>("replay_event", { event_id: eventId, override_fee: overrideFee ?? null });
     }
     const opp = FIXTURE_OPPORTUNITIES.find((o) => o.event_id === eventId);
     if (!opp) throw new Error("Event not found");
@@ -272,13 +405,8 @@ export const api = {
   },
 
   async exportIncidentBundle(incidentId: string): Promise<any> {
-    if (sidecarReachable) {
-      try {
-        return await sidecarCall<any>("export_incident_bundle", { incident_id: incidentId });
-      } catch (err) {
-        if (!isSidecarFailure(err)) throw err;
-        sidecarReachable = false;
-      }
+    if (IS_TAURI) {
+      return await sidecarCall<any>("export_incident_bundle", { incident_id: incidentId });
     }
     const inc = FIXTURE_INCIDENTS.find((i) => i.incident_id === incidentId);
     if (!inc) throw new Error("Incident not found");

@@ -112,9 +112,6 @@ class OpportunityService:
             notification_state="alert" if cooldown_decision.should_notify else "suppressed",
         )
 
-        # Save to repo
-        self.repo.save_event(event)
-
         # Archive raw books
         raw_bundle = {
             "event_id": event_id,
@@ -134,7 +131,19 @@ class OpportunityService:
             "budget": str(all_in_quote_budget),
             "timestamp_utc_ms": now_utc_ms,
         }
-        self.archives.write_capture(raw_bundle)
+        capture_hash = self.archives.write_capture(raw_bundle)
+
+        event = DecisionEvent(
+            event_id=event_id,
+            episode_id=episode_id,
+            route_key=route_key,
+            timestamp_utc_ms=now_utc_ms,
+            opportunity=opp,
+            notification_state="alert" if cooldown_decision.should_notify else "suppressed",
+        )
+
+        # Save to repo with capture metadata
+        self.repo.save_event(event, capture_hash=capture_hash, capture_data=raw_bundle)
 
         return event
 
@@ -201,13 +210,21 @@ class OpportunityService:
             "route_key": row["route_key"],
             "input_hash": row["input_hash"],
             "config_hash": row["config_hash"],
+            "result_hash": opp_data.get("result_hash", ""),
         }
 
-        # Retrieve raw snapshot from archives if available
-        # Find raw capture with matching event_id
+        capture_data = None
+        if mode == "complete":
+            capture_hash = opp_data.get("capture_hash")
+            if capture_hash:
+                capture_data = self.archives.read_capture(capture_hash)
+            if capture_data is None and "capture" in opp_data:
+                capture_data = opp_data["capture"]
+
         bundle: Dict[str, Any] = {
             "manifest": manifest,
             "opportunity": opp_data,
+            "capture": capture_data,
             "omissions": [] if mode == "complete" else ["private_balances", "exact_ip"],
         }
         return bundle
@@ -245,35 +262,63 @@ class OpportunityService:
         buy_fee = FeeProfile(venue=buy_venue, taker_rate=override_buy_fee if override_buy_fee is not None else Decimal("0.0025"))
         sell_fee = FeeProfile(venue=sell_venue, taker_rate=override_sell_fee if override_sell_fee is not None else Decimal("0.0025"))
 
-        # Reconstruct book states from stored fill details
-        # Top ask price from buy_spent / acquired_base
-        avg_buy = Decimal(opp["buy_spent"]) / Decimal(opp["acquired_base"])
-        avg_sell = Decimal(opp["net_quote_received"]) / Decimal(opp["acquired_base"])
+        raw_capture = bundle.get("capture")
+        if raw_capture and "buy_book" in raw_capture and "sell_book" in raw_capture:
+            buy_raw = raw_capture["buy_book"]
+            sell_raw = raw_capture["sell_book"]
+            buy_book = BookState(
+                venue=buy_raw.get("venue", buy_venue),
+                symbol=symbol,
+                bids=tuple(BookLevel(Decimal(p), Decimal(a)) for p, a in buy_raw.get("bids", [])),
+                asks=tuple(BookLevel(Decimal(p), Decimal(a)) for p, a in buy_raw.get("asks", [])),
+                snapshot_origin="replay",
+                applied_sequence=buy_raw.get("seq", 1),
+                source_time_ms=manifest["timestamp_utc_ms"],
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=manifest["timestamp_utc_ms"],
+                local_receipt_mono_ns=0,
+            )
+            sell_book = BookState(
+                venue=sell_raw.get("venue", sell_venue),
+                symbol=symbol,
+                bids=tuple(BookLevel(Decimal(p), Decimal(a)) for p, a in sell_raw.get("bids", [])),
+                asks=tuple(BookLevel(Decimal(p), Decimal(a)) for p, a in sell_raw.get("asks", [])),
+                snapshot_origin="replay",
+                applied_sequence=sell_raw.get("seq", 1),
+                source_time_ms=manifest["timestamp_utc_ms"],
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=manifest["timestamp_utc_ms"],
+                local_receipt_mono_ns=0,
+            )
+        else:
+            # Fallback for synthetic/sanitized bundle
+            avg_buy = Decimal(opp["buy_spent"]) / Decimal(opp["acquired_base"])
+            avg_sell = Decimal(opp["net_quote_received"]) / Decimal(opp["acquired_base"])
 
-        buy_book = BookState(
-            venue=buy_venue,
-            symbol=symbol,
-            bids=(),
-            asks=(BookLevel(price=avg_buy, amount=Decimal(opp["acquired_base"])),),
-            snapshot_origin="replay",
-            applied_sequence=1,
-            source_time_ms=manifest["timestamp_utc_ms"],
-            source_time_meaning="unknown",
-            local_receipt_utc_ms=manifest["timestamp_utc_ms"],
-            local_receipt_mono_ns=0,
-        )
-        sell_book = BookState(
-            venue=sell_venue,
-            symbol=symbol,
-            bids=(BookLevel(price=avg_sell, amount=Decimal(opp["acquired_base"])),),
-            asks=(),
-            snapshot_origin="replay",
-            applied_sequence=1,
-            source_time_ms=manifest["timestamp_utc_ms"],
-            source_time_meaning="unknown",
-            local_receipt_utc_ms=manifest["timestamp_utc_ms"],
-            local_receipt_mono_ns=0,
-        )
+            buy_book = BookState(
+                venue=buy_venue,
+                symbol=symbol,
+                bids=(),
+                asks=(BookLevel(price=avg_buy, amount=Decimal(opp["acquired_base"])),),
+                snapshot_origin="replay",
+                applied_sequence=1,
+                source_time_ms=manifest["timestamp_utc_ms"],
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=manifest["timestamp_utc_ms"],
+                local_receipt_mono_ns=0,
+            )
+            sell_book = BookState(
+                venue=sell_venue,
+                symbol=symbol,
+                bids=(BookLevel(price=avg_sell, amount=Decimal(opp["acquired_base"])),),
+                asks=(),
+                snapshot_origin="replay",
+                applied_sequence=1,
+                source_time_ms=manifest["timestamp_utc_ms"],
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=manifest["timestamp_utc_ms"],
+                local_receipt_mono_ns=0,
+            )
 
         replayed_opp = evaluate_cross_venue_opportunity(
             symbol=symbol,
@@ -286,8 +331,12 @@ class OpportunityService:
             sell_instrument=inst,
         )
 
-        # Check hash match if no overrides
-        is_exact_match = (replayed_opp.input_hash == manifest["input_hash"]) if (override_buy_fee is None and override_sell_fee is None) else False
+        is_no_override = (override_buy_fee is None and override_sell_fee is None)
+        canonical_match = (
+            replayed_opp.net_profit_quote == Decimal(str(opp.get("net_profit_quote")))
+            and replayed_opp.is_eligible == opp.get("is_eligible")
+        )
+        is_exact_match = is_no_override and (replayed_opp.input_hash == manifest.get("input_hash")) and canonical_match
 
         return {
             "status": "REPLAYED",

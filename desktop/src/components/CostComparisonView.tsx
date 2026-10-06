@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Layers, Wallet } from "lucide-react";
-import { CostComparisonResult } from "../types";
+import { Layers, Wallet, AlertTriangle } from "lucide-react";
+import { CostComparisonResult, SplitOrderResult } from "../types";
 import { api } from "../ipc";
 
 export const CostComparisonView: React.FC = () => {
@@ -8,17 +8,28 @@ export const CostComparisonView: React.FC = () => {
   const [amount, setAmount] = useState("1000.00");
   const [symbol, setSymbol] = useState("BTC/USDT");
   const [results, setResults] = useState<CostComparisonResult[]>([]);
+  const [gridData, setGridData] = useState<Record<string, CostComparisonResult[]>>({});
+  const [splitResult, setSplitResult] = useState<SplitOrderResult | null>(null);
   const [userBalance, setUserBalance] = useState<string>("");
   const [splitRatio, setSplitRatio] = useState<number>(50); // 50% / 50%
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const runComparison = async () => {
-    const res = await api.compareCosts(side, amount, symbol);
-    setResults(res);
+    try {
+      setErrorMsg(null);
+      const res = await api.compareCosts(side, amount, symbol, splitRatio);
+      setResults(res.results || []);
+      if (res.grid) setGridData(res.grid);
+      if (res.split !== undefined) setSplitResult(res.split);
+    } catch (err: any) {
+      setErrorMsg(err.message || String(err));
+      setResults([]);
+    }
   };
 
   useEffect(() => {
     runComparison();
-  }, [side, amount, symbol]);
+  }, [side, amount, symbol, splitRatio]);
 
   const parsedBal = parseFloat(userBalance);
   const parsedAmt = parseFloat(amount) || 0;
@@ -44,6 +55,13 @@ export const CostComparisonView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {errorMsg && (
+        <div className="panel-card" style={{ marginBottom: 12, borderColor: "var(--color-danger)", color: "var(--color-danger)" }}>
+          <AlertTriangle size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
+          <strong>Cost Comparison Error:</strong> {errorMsg}
+        </div>
+      )}
 
       <div className="grid-3">
         <article className="panel-card">
@@ -119,6 +137,21 @@ export const CostComparisonView: React.FC = () => {
             onChange={(e) => setSplitRatio(parseInt(e.target.value, 10))}
             style={{ width: "100%", marginBottom: 8 }}
           />
+          {splitResult && (
+            <div style={{ fontSize: 11, background: "var(--bg-subtle)", padding: 6, borderRadius: 4, marginBottom: 4 }}>
+              <div>
+                <strong>Combined Outcome: </strong>
+                {side === "buy" ? `${splitResult.total_base} base` : `$${splitResult.total_spent_or_received} quote`}
+                {" "}@ avg ${splitResult.effective_avg_price}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
+                <span>Total Child Fees: ${splitResult.total_fees_quote}</span>
+                <span className={`badge ${splitResult.all_complete ? "badge-success" : "badge-danger"}`}>
+                  {splitResult.all_complete ? "CONSERVED & COMPLETE" : "DEPTH EXHAUSTED"}
+                </span>
+              </div>
+            </div>
+          )}
           <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
             Applies fixed order fees at the child-order level and consumes disjoint depth.
           </div>
@@ -175,29 +208,41 @@ export const CostComparisonView: React.FC = () => {
       <div className="panel-card" style={{ marginTop: 12 }}>
         <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Amount Sensitivity Grid</h3>
         <div className="grid-3">
-          {["100.00", "1000.00", "10000.00"].map((gridAmt) => (
-            <div
-              key={gridAmt}
-              style={{
-                border: "1px solid var(--border-color)",
-                padding: 10,
-                borderRadius: "var(--radius)",
-                backgroundColor: "var(--bg-subtle)",
-              }}
-            >
-              <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
-                Size: {gridAmt} {side === "buy" ? "USDT" : "BTC"}
+          {["100.00", "1000.00", "10000.00"].map((gridAmt) => {
+            const rowResults = gridData[gridAmt] || [];
+            const topCandidate = rowResults.find((r) => r.is_complete) || rowResults[0];
+            const isUsable = topCandidate ? topCandidate.is_complete : false;
+            const cheapestText = topCandidate
+              ? isUsable
+                ? `${topCandidate.venue.toUpperCase()} ($${topCandidate.avg_price})`
+                : "None (Insufficient depth)"
+              : "Calculating...";
+            return (
+              <div
+                key={gridAmt}
+                style={{
+                  border: "1px solid var(--border-color)",
+                  padding: 10,
+                  borderRadius: "var(--radius)",
+                  backgroundColor: "var(--bg-subtle)",
+                }}
+              >
+                <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+                  Size: {gridAmt} {side === "buy" ? "USDT" : "BTC"}
+                </div>
+                <div style={{ fontSize: 11, display: "flex", justifyContent: "space-between" }}>
+                  <span>Cheapest Venue:</span>
+                  <span style={{ fontWeight: 600 }}>{cheapestText}</span>
+                </div>
+                <div style={{ fontSize: 11, display: "flex", justifyContent: "space-between", marginTop: 2 }}>
+                  <span>Depth Coverage:</span>
+                  <span className={`badge ${isUsable ? "badge-success" : "badge-danger"}`}>
+                    {isUsable ? "USABLE" : (topCandidate?.rejection_reason || "INSUFFICIENT_DEPTH")}
+                  </span>
+                </div>
               </div>
-              <div style={{ fontSize: 11, display: "flex", justifyContent: "space-between" }}>
-                <span>Cheapest Venue:</span>
-                <span style={{ fontWeight: 600 }}>Kraken Spot</span>
-              </div>
-              <div style={{ fontSize: 11, display: "flex", justifyContent: "space-between" }}>
-                <span>Depth Coverage:</span>
-                <span className="badge badge-success">USABLE</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

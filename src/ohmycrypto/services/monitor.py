@@ -29,6 +29,9 @@ from ohmycrypto.storage.db import create_connection
 from ohmycrypto.storage.migrations import run_migrations
 from ohmycrypto.storage.repository import StorageRepository
 
+import logging
+logger = logging.getLogger(__name__)
+
 DEFAULT_SYMBOL = "BTC/USDT"
 DEFAULT_BUDGET = "1000.00"
 DEFAULT_POLL_INTERVAL_SEC = 5.0
@@ -40,6 +43,8 @@ class MonitoringService:
 
     One instance owns one writer connection. The loop thread is a daemon so it
     can never keep the host process alive; stop() joins it explicitly.
+    Owns a dedicated persistent event loop for engine I/O so HTTP/CCXT and
+    WebSocket clients are created, used, and closed on a single loop.
     """
 
     def __init__(
@@ -65,6 +70,15 @@ class MonitoringService:
         )
         self.poll_interval_sec = poll_interval_sec
 
+        # Dedicated persistent event loop for all engine I/O
+        self._io_loop: Optional[asyncio.AbstractEventLoop] = asyncio.new_event_loop()
+        self._io_thread: Optional[threading.Thread] = threading.Thread(
+            target=self._io_loop.run_forever,
+            name="omc-engine-io",
+            daemon=True,
+        )
+        self._io_thread.start()
+
         self._connectors: Dict[str, BaseSpotConnector] = {
             "coinbase": CoinbaseConnector(),
             "kraken": KrakenConnector(),
@@ -79,6 +93,13 @@ class MonitoringService:
         self._cycles_done = 0
         self._last_cycle_error: Optional[str] = None
         self._started_at_mono: Optional[float] = None
+
+    def run_async(self, coro: Any, timeout: float = 30.0) -> Any:
+        """Execute a coroutine on the engine's persistent I/O event loop."""
+        if self._io_loop is None or not self._io_loop.is_running():
+            raise RuntimeError("Engine persistent I/O loop is not running")
+        future = asyncio.run_coroutine_threadsafe(coro, self._io_loop)
+        return future.result(timeout=timeout)
 
     # ------------------------------------------------------------------ config
 
@@ -123,6 +144,36 @@ class MonitoringService:
 
     # -------------------------------------------------------------- lifecycle
 
+    def _start_streams_async(self) -> None:
+        """Start streaming on active venues if supported by connector."""
+        symbol = self._config.get("symbol", DEFAULT_SYMBOL)
+        async def _start():
+            for venue in {self._config.get("buy_venue"), self._config.get("sell_venue")}:
+                conn = self._connectors.get(venue)
+                if conn is not None and hasattr(conn, "start_stream"):
+                    try:
+                        await conn.start_stream([symbol], depth=10)
+                    except Exception as exc:
+                        logger.warning("Failed to start stream for %s: %s", venue, exc)
+        if self._io_loop is not None and self._io_loop.is_running():
+            asyncio.run_coroutine_threadsafe(_start(), self._io_loop)
+
+    def _stop_streams_sync(self) -> None:
+        """Stop all active connector streams on the I/O loop."""
+        async def _stop():
+            for conn in self._connectors.values():
+                if hasattr(conn, "stop_stream"):
+                    try:
+                        await conn.stop_stream()
+                    except Exception:
+                        pass
+        if self._io_loop is not None and self._io_loop.is_running():
+            try:
+                future = asyncio.run_coroutine_threadsafe(_stop(), self._io_loop)
+                future.result(timeout=5.0)
+            except Exception:
+                pass
+
     def start(self) -> Dict[str, Any]:
         with self._lock:
             if self._status == "monitoring":
@@ -136,12 +187,14 @@ class MonitoringService:
             self._status = "monitoring"
             self._started_at_mono = time.monotonic()
             self._wakeup.set()
+            self._start_streams_async()
             return self._snapshot_locked()
 
     def pause(self) -> Dict[str, Any]:
         with self._lock:
             if self._status == "monitoring":
                 self._status = "paused"
+            self._stop_streams_sync()
             return self._snapshot_locked()
 
     def resume(self) -> Dict[str, Any]:
@@ -149,6 +202,7 @@ class MonitoringService:
             if self._status == "paused":
                 self._status = "monitoring"
                 self._wakeup.set()
+                self._start_streams_async()
             return self._snapshot_locked()
 
     def stop(self) -> Dict[str, Any]:
@@ -156,6 +210,7 @@ class MonitoringService:
             self._status = "stopped"
         self._stop_requested.set()
         self._wakeup.set()
+        self._stop_streams_sync()
         thread = self._thread
         if thread is not None and thread.is_alive():
             thread.join(timeout=10.0)
@@ -207,7 +262,7 @@ class MonitoringService:
                 self._last_cycle_error = str(exc)
             self._cycles_done += 1
             elapsed = time.monotonic() - t0
-            self._wakeup.wait(timeout=max(0.1, self.poll_interval_sec - elapsed))
+            self._wakeup.wait(timeout=max(0.005, self.poll_interval_sec - elapsed))
             self._wakeup.clear()
 
     def _run_cycle(self) -> None:
@@ -222,15 +277,24 @@ class MonitoringService:
         books: Dict[str, Any] = {}
         fetch_errors: Dict[str, str] = {}
         t0_map: Dict[str, float] = {}
-        # Network I/O happens OUTSIDE the database lock so UI reads never
-        # block on venue latency.
+        now_mono = time.monotonic_ns()
         for venue in {buy_venue, sell_venue}:
             connector = self._connectors.get(venue)
             if connector is None:
                 continue
             t0_map[venue] = time.monotonic()
             try:
-                books[venue] = asyncio.run(connector.fetch_orderbook(symbol))
+                stream_book = connector.get_orderbook(symbol)
+                if (
+                    stream_book is not None
+                    and stream_book.quality_status == "clean"
+                    and (now_mono - stream_book.local_receipt_mono_ns) < 1_000_000_000
+                    and stream_book.bids
+                    and stream_book.asks
+                ):
+                    books[venue] = stream_book
+                else:
+                    books[venue] = self.run_async(connector.fetch_orderbook(symbol))
             except Exception as exc:  # noqa: BLE001 - isolated per connector
                 fetch_errors[venue] = str(exc)
 
@@ -239,8 +303,9 @@ class MonitoringService:
                 self.diagnostics.record_latency(
                     venue, (time.monotonic() - t0_map[venue]) * 1000
                 )
+                channel = "ws_book" if book.snapshot_origin.startswith("stream") else "rest_l2"
                 self.diagnostics.record_clean_observation(
-                    venue, "rest_l2", bool(book.bids and book.asks)
+                    venue, channel, bool(book.bids and book.asks)
                 )
             for venue, err in fetch_errors.items():
                 self.diagnostics.record_fault(
@@ -271,13 +336,25 @@ class MonitoringService:
             min_profit = Decimal(str(self._config.get("min_profit_threshold", "0")))
             min_spread = Decimal(str(self._config.get("min_spread_threshold", "0")))
 
+            buy_fee = self.repo.get_fee_profile(buy_venue)
+            if buy_fee is None:
+                rate = Decimal("0.0060") if buy_venue == "coinbase" else Decimal("0.0040")
+                buy_fee = FeeProfile(venue=buy_venue, taker_rate=rate, source="default_tier")
+                self.repo.save_fee_profile(buy_fee)
+
+            sell_fee = self.repo.get_fee_profile(sell_venue)
+            if sell_fee is None:
+                rate = Decimal("0.0060") if sell_venue == "coinbase" else Decimal("0.0040")
+                sell_fee = FeeProfile(venue=sell_venue, taker_rate=rate, source="default_tier")
+                self.repo.save_fee_profile(sell_fee)
+
             self.opportunity.evaluate(
                 symbol=symbol,
                 buy_book=books[buy_venue],
                 sell_book=books[sell_venue],
                 all_in_quote_budget=budget,
-                buy_fee_profile=FeeProfile(venue=buy_venue, taker_rate=Decimal("0.0025")),
-                sell_fee_profile=FeeProfile(venue=sell_venue, taker_rate=Decimal("0.0025")),
+                buy_fee_profile=buy_fee,
+                sell_fee_profile=sell_fee,
                 buy_instrument=buy_instrument,
                 sell_instrument=sell_instrument,
                 min_profit_threshold=min_profit,
@@ -297,8 +374,32 @@ class MonitoringService:
     def close(self) -> None:
         try:
             self.stop()
+            self._stop_streams_sync()
+            if self._io_loop is not None and self._io_loop.is_running():
+                async def _close_connectors():
+                    for c in self._connectors.values():
+                        if hasattr(c, "close"):
+                            try:
+                                await c.close()
+                            except Exception:
+                                pass
+                try:
+                    future = asyncio.run_coroutine_threadsafe(_close_connectors(), self._io_loop)
+                    future.result(timeout=5.0)
+                except Exception:
+                    pass
+                self._io_loop.call_soon_threadsafe(self._io_loop.stop)
+                if self._io_thread is not None and self._io_thread.is_alive():
+                    self._io_thread.join(timeout=5.0)
+                try:
+                    self._io_loop.close()
+                except Exception:
+                    pass
+                self._io_loop = None
+                self._io_thread = None
         finally:
-            try:
-                self.conn.close()
-            except Exception:  # noqa: BLE001
-                pass
+            with self._db_lock:
+                try:
+                    self.conn.close()
+                except Exception:  # noqa: BLE001
+                    pass

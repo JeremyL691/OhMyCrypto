@@ -165,16 +165,13 @@ class OrderbookMaintenance:
         return zlib.crc32("".join(parts).encode("utf-8"))
 
 
-def format_venue_num(value: Decimal) -> str:
-    """Strip trailing zeros after the decimal point, collapsing integral values.
+def format_venue_num(value: Any) -> str:
+    """Format price/quantity token for venue checksums (Kraken v2 book checksum).
 
-    Venue checksum strings concatenate the shortest canonical representation of
-    each price and amount, so 100.50000 must render as 100.5 and 100.000 as 100.
+    Removes decimal points and leading zeros: s.replace(".", "").lstrip("0") or "0".
     """
     text = str(value)
-    if "." in text:
-        text = text.rstrip("0").rstrip(".")
-    return text
+    return text.replace(".", "").lstrip("0") or "0"
 
 
 class WebSocketStreamSession:

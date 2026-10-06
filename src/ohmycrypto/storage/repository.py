@@ -151,7 +151,12 @@ class StorageRepository:
         )
 
     # Opportunity Events
-    def save_event(self, event: DecisionEvent) -> None:
+    def save_event(
+        self,
+        event: DecisionEvent,
+        capture_hash: Optional[str] = None,
+        capture_data: Optional[Dict[str, Any]] = None,
+    ) -> None:
         opp_dict = {
             "symbol": event.opportunity.symbol,
             "buy_venue": event.opportunity.buy_venue,
@@ -169,6 +174,9 @@ class StorageRepository:
             "is_positive": event.opportunity.is_positive,
             "is_eligible": event.opportunity.is_eligible,
             "eligibility_reasons": list(event.opportunity.eligibility_reasons),
+            "result_hash": event.opportunity.result_hash,
+            "capture_hash": capture_hash,
+            "capture": capture_data,
         }
 
         self.conn.execute(

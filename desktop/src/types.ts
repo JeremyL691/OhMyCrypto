@@ -91,3 +91,47 @@ export interface EngineStatus {
   active_budget: string;
   is_demo: boolean;
 }
+
+export interface SystemSettings {
+  retention_days: number;
+  raw_quota_gb: number;
+  audio_enabled: boolean;
+  speech_enabled: boolean;
+  quiet_mode: boolean;
+}
+
+export interface LatencyDistribution {
+  count: number;
+  p50: number;
+  p95: number;
+  p99: number;
+}
+
+export interface SplitOrderChild {
+  venue: string;
+  allocated_amount: string;
+  acquired_base?: string;
+  quote_spent?: string;
+  quote_received?: string;
+  fee_quote: string;
+  is_complete: boolean;
+  rejection_reason?: string;
+}
+
+export interface SplitOrderResult {
+  side: "buy" | "sell";
+  symbol: string;
+  all_complete: boolean;
+  total_base: string;
+  total_spent_or_received: string;
+  total_fees_quote: string;
+  total_fees_base: string;
+  effective_avg_price: string;
+  children: SplitOrderChild[];
+}
+
+export interface CostComparisonResponse {
+  results: CostComparisonResult[];
+  grid?: Record<string, CostComparisonResult[]>;
+  split?: SplitOrderResult | null;
+}

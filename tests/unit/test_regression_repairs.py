@@ -212,3 +212,61 @@ def test_notification_outbox_quiet_mode_and_visibility():
     )
     assert rec2.state == "pending"
     assert rec2.enqueue_utc_ms >= rec2.decision_utc_ms
+
+
+def test_unsorted_books_rejected():
+    """N01: Unsorted bids or asks must be rejected by BookState."""
+    # Unsorted asks (ascending required)
+    asks = (
+        BookLevel(price=Decimal("102.0"), amount=Decimal("1.0")),
+        BookLevel(price=Decimal("101.0"), amount=Decimal("1.0")),
+    )
+    with pytest.raises(ValueError, match="Unsorted asks"):
+        BookState("cb", "BTC/USDT", (), asks, "test", 1, None, "unknown", 1000, 1000)
+
+    # Unsorted bids (descending required)
+    bids = (
+        BookLevel(price=Decimal("99.0"), amount=Decimal("1.0")),
+        BookLevel(price=Decimal("100.0"), amount=Decimal("1.0")),
+    )
+    with pytest.raises(ValueError, match="Unsorted bids"):
+        BookState("cb", "BTC/USDT", bids, (), "test", 1, None, "unknown", 1000, 1000)
+
+
+def test_incompatible_instruments_rejected():
+    """N01: Incompatible base or cross-quote assets must not produce eligible opportunity."""
+    inst_btc = Instrument("BTC/USDT", "BTC", "USDT", "cb", "BTC-USDT")
+    inst_eth = Instrument("ETH/USDT", "ETH", "USDT", "kr", "ETH/USDT")
+    fee = FeeProfile("generic", taker_rate=Decimal("0.001"))
+
+    asks = (BookLevel(price=Decimal("50000.0"), amount=Decimal("1.0")),)
+    bids = (BookLevel(price=Decimal("55000.0"), amount=Decimal("1.0")),)
+    b_buy = BookState("cb", "BTC/USDT", (), asks, "test", 1, None, "unknown", 1000, 1000)
+    b_sell = BookState("kr", "ETH/USDT", bids, (), "test", 1, None, "unknown", 1000, 1000)
+
+    opp = evaluate_cross_venue_opportunity(
+        "BTC/USDT", b_buy, b_sell, Decimal("1000.0"), fee, fee, inst_btc, inst_eth
+    )
+    assert opp.is_eligible is False
+    assert "incompatible_base_assets" in opp.eligibility_reasons
+
+
+def test_zero_fee_and_zero_threshold_valid():
+    """N01: Zero fees and zero thresholds are valid and supported."""
+    inst = Instrument("BTC/USDT", "BTC", "USDT", "cb", "BTC-USDT")
+    zero_fee = FeeProfile("cb", taker_rate=Decimal("0.0"), maker_rate=Decimal("0.0"), fixed_fee=Decimal("0.0"))
+    asks = (BookLevel(price=Decimal("100.0"), amount=Decimal("10.0")),)
+    bids = (BookLevel(price=Decimal("110.0"), amount=Decimal("10.0")),)
+    b_buy = BookState("cb", "BTC/USDT", (), asks, "test", 1, None, "unknown", 1000, 1000)
+    b_sell = BookState("kr", "BTC/USDT", bids, (), "test", 1, None, "unknown", 1000, 1000)
+
+    opp = evaluate_cross_venue_opportunity(
+        "BTC/USDT", b_buy, b_sell, Decimal("1000.0"), zero_fee, zero_fee, inst, inst,
+        min_profit_threshold=Decimal("0.0"), min_spread_threshold=Decimal("0.0")
+    )
+    assert opp.is_positive is True
+    assert opp.is_eligible is True
+    assert opp.buy_fill.fee_quote == Decimal("0.0")
+    assert opp.sell_fill.fee_quote == Decimal("0.0")
+    assert opp.net_profit_quote == Decimal("100.0")  # (1000 / 100) * 110 - 1000 = 1100 - 1000 = 100
+

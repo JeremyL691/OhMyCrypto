@@ -34,12 +34,12 @@ KRAKEN_WS_URL = "wss://ws.kraken.com/v2"
 logger = logging.getLogger(__name__)
 
 
-def format_kraken_num(d: Decimal) -> str:
-    """Format Decimal for Kraken checksum string (strip trailing zeroes after decimal point if cleanly zero)."""
+def format_kraken_num(d: Any) -> str:
+    """Format price/quantity token for Kraken book v2 checksum string:
+    Remove '.' and strip leading zeros: s.replace(".", "").lstrip("0") or "0".
+    """
     s = str(d)
-    if "." in s:
-        s = s.rstrip("0").rstrip(".")
-    return s
+    return s.replace(".", "").lstrip("0") or "0"
 
 
 def calculate_kraken_checksum(bids: Sequence[BookLevel], asks: Sequence[BookLevel]) -> int:
@@ -67,12 +67,9 @@ class KrakenConnector(BaseSpotConnector):
         super().__init__(venue="kraken")
         self._ccxt_client: Optional[ccxt_async.kraken] = None
         self._last_sequence: Dict[str, int] = {}
-        # Kraken publishes a CRC32 book checksum, but the live values do not
-        # reproduce under the documented algorithm (ccxt ships the same
-        # reference implementation and disables the check as unreliable).
-        # Verification therefore always runs and mismatches are always counted
-        # as diagnostics, but only strict mode escalates to a REST resync,
-        # which would otherwise cause a continuous resync storm.
+        # Strict checksum verification: Kraken publishes CRC32 checksums
+        # over the top-10 levels. On mismatch, the book is invalidated and
+        # a REST snapshot resync is triggered.
         self.strict_checksum = strict_checksum
 
         # --- WebSocket book v2 streaming state ---
@@ -92,9 +89,8 @@ class KrakenConnector(BaseSpotConnector):
     def _book_for(self, symbol: str) -> OrderbookMaintenance:
         """Get or create the incremental maintenance structure for a symbol."""
         book = self._books.get(symbol)
-        # Retain a little beyond the subscribed depth so that levels removed
-        # from the visible window can reappear on delete of a better level.
-        retain = max(DEFAULT_MAX_DEPTH, self._ws_depth * 5)
+        # Truncate to subscribed depth after every update per Kraken v2 specification
+        retain = self._ws_depth
         if book is None:
             book = OrderbookMaintenance(venue=self.venue, symbol=symbol, max_depth=retain)
             self._books[symbol] = book
@@ -154,7 +150,7 @@ class KrakenConnector(BaseSpotConnector):
         if isinstance(raw, bytes):
             raw = raw.decode("utf-8", errors="replace")
         try:
-            msg = json.loads(raw)
+            msg = json.loads(raw, parse_float=Decimal)
         except (ValueError, TypeError):
             return
 
@@ -365,17 +361,28 @@ class KrakenConnector(BaseSpotConnector):
         }
 
     async def _get_client(self) -> ccxt_async.kraken:
+        current_loop = asyncio.get_running_loop()
+        if self._ccxt_client is not None:
+            client_loop = getattr(self._ccxt_client, "asyncio_loop", None) or getattr(self, "_client_loop", None)
+            if client_loop is not None and (client_loop.is_closed() or client_loop is not current_loop):
+                self._ccxt_client = None
         if self._ccxt_client is None:
+            self._client_loop = current_loop
             self._ccxt_client = ccxt_async.kraken({
                 "enableRateLimit": True,
                 "timeout": 10000,
+                "asyncio_loop": current_loop,
             })
         return self._ccxt_client
 
     async def close(self) -> None:
         if self._ccxt_client is not None:
-            await self._ccxt_client.close()
+            try:
+                await self._ccxt_client.close()
+            except Exception:
+                pass
             self._ccxt_client = None
+            self._client_loop = None
 
     async def fetch_markets(self) -> Dict[str, Instrument]:
         """Fetch spot instruments from Kraken."""

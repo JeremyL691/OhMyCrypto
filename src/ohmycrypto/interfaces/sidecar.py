@@ -95,7 +95,9 @@ class SidecarEngine:
     # -------------------------------------------------------------- lock file
 
     def acquire_lock(self, lock_dir: Optional[str] = None) -> bool:
-        """Acquire a single-instance writer lock file."""
+        """Acquire an atomic OS-backed single-instance writer lock file."""
+        import fcntl
+
         if lock_dir is None:
             lock_dir = os.environ.get("OHMYCRYPTO_DATA_DIR")
             if not lock_dir:
@@ -104,24 +106,22 @@ class SidecarEngine:
         self.lock_file_path = os.path.join(lock_dir, "engine.lock")
 
         try:
-            # Check if existing lock is active
-            if os.path.exists(self.lock_file_path):
-                with open(self.lock_file_path, "r", encoding="utf-8") as f:
-                    content = f.read().strip()
-                if content:
-                    try:
-                        old_pid = int(content)
-                        # Check if process with old_pid is running
-                        os.kill(old_pid, 0)
-                        # Process exists, cannot acquire
-                        sys.stderr.write(f"[sidecar] Active instance with PID {old_pid} already holds lock.\n")
-                        return False
-                    except (OSError, ProcessLookupError, ValueError):
-                        # Stale lock file
-                        sys.stderr.write(f"[sidecar] Clearing stale lock file from PID {content}.\n")
+            self._lock_file = open(self.lock_file_path, "a+", encoding="utf-8")
+            try:
+                fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except (BlockingIOError, OSError):
+                # Lock is currently held by another active process
+                self._lock_file.seek(0)
+                old_pid = self._lock_file.read().strip()
+                sys.stderr.write(f"[sidecar] Active instance with PID {old_pid} already holds lock.\n")
+                self._lock_file.close()
+                self._lock_file = None
+                return False
 
-            with open(self.lock_file_path, "w", encoding="utf-8") as f:
-                f.write(str(os.getpid()))
+            self._lock_file.seek(0)
+            self._lock_file.truncate(0)
+            self._lock_file.write(str(os.getpid()))
+            self._lock_file.flush()
             return True
         except Exception as e:
             sys.stderr.write(f"[sidecar] Failed to acquire lock: {e}\n")
@@ -129,6 +129,16 @@ class SidecarEngine:
 
     def release_lock(self) -> None:
         """Release single-instance lock file."""
+        import fcntl
+
+        if getattr(self, "_lock_file", None) is not None:
+            try:
+                fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_UN)
+                self._lock_file.close()
+            except Exception:
+                pass
+            self._lock_file = None
+
         if self.lock_file_path and os.path.exists(self.lock_file_path):
             try:
                 with open(self.lock_file_path, "r", encoding="utf-8") as f:
@@ -231,10 +241,64 @@ class SidecarEngine:
         events = self._engine().recent_events(limit=max(1, min(limit, 200)))
         return {"opportunities": [self._event_to_item(row) for row in events]}
 
+    def _action_get_settings(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        with self._engine()._db_lock:
+            settings = self._engine().repo.get_setting("system_settings")
+        if not isinstance(settings, dict):
+            settings = {
+                "retention_days": 7,
+                "raw_quota_gb": 2,
+                "audio_enabled": True,
+                "speech_enabled": False,
+                "quiet_mode": False,
+            }
+        return {"settings": settings}
+
+    def _action_update_settings(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        with self._engine()._db_lock:
+            existing = self._engine().repo.get_setting("system_settings")
+            if not isinstance(existing, dict):
+                existing = {
+                    "retention_days": 7,
+                    "raw_quota_gb": 2,
+                    "audio_enabled": True,
+                    "speech_enabled": False,
+                    "quiet_mode": False,
+                }
+            updates = payload.get("settings") or payload
+            for k, v in updates.items():
+                if k in existing:
+                    existing[k] = v
+            self._engine().repo.set_setting("system_settings", existing)
+        return {"settings": existing}
+
+    def _action_export_replay_bundle(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        event_id = payload.get("event_id")
+        mode = payload.get("mode") or "complete"
+        service = self._engine().opportunity
+        if not event_id:
+            with self._engine()._db_lock:
+                cursor = self._engine().repo.conn.execute(
+                    "SELECT event_id FROM events ORDER BY timestamp_utc_ms DESC LIMIT 1;"
+                )
+                row = cursor.fetchone()
+            if row is None:
+                raise ValueError("No recorded events to export")
+            event_id = row["event_id"]
+        return service.export_replay_bundle(event_id, mode=mode)
+
     def _action_get_incidents(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         limit = int(payload.get("limit") or 50)
         rows = self._engine().recent_incidents(limit=max(1, min(limit, 200)))
-        return {"incidents": [self._incident_to_item(row) for row in rows]}
+        incidents = [self._incident_to_item(row) for row in rows]
+        latencies = {
+            "coinbase": self._engine().diagnostics.get_latency_distribution("coinbase"),
+            "kraken": self._engine().diagnostics.get_latency_distribution("kraken"),
+        }
+        return {"incidents": incidents, "latencies": latencies}
+
+    def _action_get_diagnostics(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return self._action_get_incidents(payload)
 
     def _action_compare_costs(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         side = payload.get("side")
@@ -250,7 +314,7 @@ class SidecarEngine:
         for venue, connector in monitor._connectors.items():
             t0 = time.monotonic()
             try:
-                book = _run_async(connector.fetch_orderbook(symbol))
+                book = monitor.run_async(connector.fetch_orderbook(symbol))
                 books[venue] = book
                 monitor.diagnostics.record_latency(venue, (time.monotonic() - t0) * 1000)
             except Exception as exc:  # noqa: BLE001 - report per-venue failure
@@ -278,7 +342,40 @@ class SidecarEngine:
             fee_profiles=fee_profiles,
             instruments=instruments,
         )
-        return {"side": side, "symbol": symbol, "results": results}
+
+        grid = advisor.compute_amount_grid(
+            side=side,
+            grid_amounts=[Decimal("100"), Decimal("1000"), Decimal("10000")],
+            symbol=symbol,
+            books=books,
+            fee_profiles=fee_profiles,
+            instruments=instruments,
+        )
+
+        split_pct = Decimal(str(payload.get("split_ratio", 50))) / Decimal("100")
+        if "coinbase" in books and "kraken" in books:
+            allocations = [
+                ("coinbase", amount * split_pct),
+                ("kraken", amount * (Decimal("1") - split_pct)),
+            ]
+            split_res = advisor.evaluate_split_order(
+                side=side,
+                symbol=symbol,
+                allocations=allocations,
+                books=books,
+                fee_profiles=fee_profiles,
+                instruments=instruments,
+            )
+        else:
+            split_res = None
+
+        return {
+            "side": side,
+            "symbol": symbol,
+            "results": results,
+            "grid": grid,
+            "split": split_res,
+        }
 
     def _action_replay_event(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         event_id = payload.get("event_id")
@@ -354,8 +451,10 @@ class SidecarEngine:
         }
 
 
-def _run_async(coro: Any) -> Any:
-    """Run a coroutine on a fresh event loop from synchronous code."""
+def _run_async(coro: Any, engine: Optional[SidecarEngine] = None) -> Any:
+    """Run a coroutine on the engine's persistent I/O event loop or a fresh loop if needed."""
+    if engine is not None and engine._monitor is not None and engine._monitor._io_loop is not None and engine._monitor._io_loop.is_running():
+        return engine._monitor.run_async(coro)
     import asyncio
 
     loop = asyncio.new_event_loop()

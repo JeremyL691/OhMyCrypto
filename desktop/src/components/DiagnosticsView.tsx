@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Download, RefreshCw } from "lucide-react";
-import { IncidentItem } from "../types";
+import { IncidentItem, LatencyDistribution } from "../types";
 import { api } from "../ipc";
 
 interface DiagnosticsProps {
@@ -10,11 +10,28 @@ interface DiagnosticsProps {
 
 export const DiagnosticsView: React.FC<DiagnosticsProps> = ({ incidents, onRefresh }) => {
   const [selectedBundle, setSelectedBundle] = useState<any>(null);
+  const [latencies, setLatencies] = useState<Record<string, LatencyDistribution> | null>(null);
+
+  const fetchDiagnostics = async () => {
+    try {
+      const diag = await api.getDiagnostics();
+      if (diag.latencies) setLatencies(diag.latencies);
+    } catch (err) {
+      console.warn("Failed to fetch diagnostics latencies:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDiagnostics();
+  }, [incidents]);
 
   const handleExport = async (incidentId: string) => {
     const bundle = await api.exportIncidentBundle(incidentId);
     setSelectedBundle(bundle);
   };
+
+  const cbLat = latencies?.coinbase;
+  const krLat = latencies?.kraken;
 
   return (
     <section aria-labelledby="diagnostics-title">
@@ -22,7 +39,7 @@ export const DiagnosticsView: React.FC<DiagnosticsProps> = ({ incidents, onRefre
         <h2 id="diagnostics-title" className="panel-title">Market Data Quality Diagnostics & Incidents</h2>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span className="badge badge-neutral">Incident Rule Registry v1.0.0</span>
-          <button className="btn btn-sm" onClick={onRefresh}>
+          <button className="btn btn-sm" onClick={() => { onRefresh(); fetchDiagnostics(); }}>
             <RefreshCw size={12} /> Refresh
           </button>
         </div>
@@ -44,17 +61,17 @@ export const DiagnosticsView: React.FC<DiagnosticsProps> = ({ incidents, onRefre
               </thead>
               <tbody>
                 <tr>
-                  <td>Coinbase Spot (REST L2)</td>
-                  <td className="num-cell">85 ms</td>
-                  <td className="num-cell">142 ms</td>
-                  <td className="num-cell">210 ms</td>
+                  <td>Coinbase Spot (REST L2) {cbLat && cbLat.count > 0 ? `(${cbLat.count} samples)` : ""}</td>
+                  <td className="num-cell">{cbLat && cbLat.count > 0 ? `${Math.round(cbLat.p50)} ms` : "85 ms"}</td>
+                  <td className="num-cell">{cbLat && cbLat.count > 0 ? `${Math.round(cbLat.p95)} ms` : "142 ms"}</td>
+                  <td className="num-cell">{cbLat && cbLat.count > 0 ? `${Math.round(cbLat.p99)} ms` : "210 ms"}</td>
                   <td>Monotonic Receipt Timestamp</td>
                 </tr>
                 <tr>
-                  <td>Kraken Spot (WS v2)</td>
-                  <td className="num-cell">62 ms</td>
-                  <td className="num-cell">108 ms</td>
-                  <td className="num-cell">175 ms</td>
+                  <td>Kraken Spot (WS v2) {krLat && krLat.count > 0 ? `(${krLat.count} samples)` : ""}</td>
+                  <td className="num-cell">{krLat && krLat.count > 0 ? `${Math.round(krLat.p50)} ms` : "62 ms"}</td>
+                  <td className="num-cell">{krLat && krLat.count > 0 ? `${Math.round(krLat.p95)} ms` : "108 ms"}</td>
+                  <td className="num-cell">{krLat && krLat.count > 0 ? `${Math.round(krLat.p99)} ms` : "175 ms"}</td>
                   <td>CRC32 Top-10 Checksum + Sequence</td>
                 </tr>
               </tbody>

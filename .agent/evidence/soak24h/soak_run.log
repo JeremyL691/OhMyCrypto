@@ -7,3 +7,15 @@ Report output: .agent/evidence/soak24h/soak_report.json
 [   5.8s / 86400s] Heartbeat #1: RSS = 27.6 MB (Peak: 27.6 MB), latency samples = 2
 [   5.9s / 86400s] Heartbeat #2: RSS = 111.3 MB (Peak: 111.3 MB), latency samples = 2
 [  10.9s / 86400s] Heartbeat #3: RSS = 75.5 MB (Peak: 111.3 MB), latency samples = 2
+[  57.0s / 86400s] Heartbeat #12: RSS = 77.2 MB (Peak: 115.4 MB), latency samples = 8
+[ 117.4s / 86400s] Heartbeat #24: RSS = 94.9 MB (Peak: 116.9 MB), latency samples = 16
+[ 177.8s / 86400s] Heartbeat #36: RSS = 69.8 MB (Peak: 116.9 MB), latency samples = 24
+[ 238.0s / 86400s] Heartbeat #48: RSS = 65.1 MB (Peak: 116.9 MB), latency samples = 32
+
+Received signal 15, terminating soak gracefully...
+
+Soak report written to: .agent/evidence/soak24h/soak_report.json
+Total Duration: 313.1s (target 86400s)
+Max RSS: 116.9 MB (Limit: 512.0 MB)
+Latency p50/p95/p99 ms: 2211.717 / 2741.306 / 2761.39
+Status: FAILED

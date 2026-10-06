@@ -1,6 +1,7 @@
 """Tests for opportunity evaluation, continuous persistence tracking, and deterministic replay."""
 
 from decimal import Decimal
+import json
 import os
 import tempfile
 import pytest
@@ -146,6 +147,12 @@ def test_export_and_replay_cycle():
         replay_res = service.replay_bundle(complete_bundle)
         assert replay_res["status"] == "REPLAYED"
         assert replay_res["is_exact_match"] is True
+
+        # F02 check: Tampered profit must NOT produce is_exact_match=True
+        tampered_bundle = json.loads(json.dumps(complete_bundle))
+        tampered_bundle["opportunity"]["net_profit_quote"] = "9.999999"
+        tampered_res = service.replay_bundle(tampered_bundle)
+        assert tampered_res["is_exact_match"] is False, "Tampered profit must fail exact match!"
 
         # Replay with higher fee (taker 1.0%)
         higher_fee_res = service.replay_bundle(complete_bundle, override_buy_fee=Decimal("0.0100"), override_sell_fee=Decimal("0.0100"))

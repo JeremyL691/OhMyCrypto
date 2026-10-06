@@ -1,9 +1,9 @@
 {
-  "verification_id": "verify_offline_1791251658",
+  "verification_id": "verify_offline_1791257709",
   "gate": "offline",
-  "commit": "a8b868a8553f7a98ecb7375e31e4771e1813db3a",
-  "timestamp_start_utc": "2026-10-06T01:54:18.781873+00:00",
-  "timestamp_end_utc": "2026-10-06T01:54:51.196808+00:00",
+  "commit": "bcb7531307410d7e217e09c6a058f39983010fa5",
+  "timestamp_start_utc": "2026-10-06T03:35:09.186519+00:00",
+  "timestamp_end_utc": "2026-10-06T03:35:42.466363+00:00",
   "platform": {
     "system": "Darwin",
     "machine": "arm64",
@@ -16,8 +16,8 @@
       "command": "/Users/jeremyliu/Desktop/Projects/OhMyCrypto/.venv/bin/python -m pytest tests/unit tests/replay tests/integration -q",
       "passed": true,
       "exit_code": 0,
-      "summary": "57 passed in 20.62s",
-      "tests_collected": 57,
+      "summary": "71 passed in 22.69s",
+      "tests_collected": 71,
       "min_required": 57
     },
     {

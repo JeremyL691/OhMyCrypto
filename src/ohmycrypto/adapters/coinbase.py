@@ -266,17 +266,28 @@ class CoinbaseConnector(BaseSpotConnector):
         }
 
     async def _get_client(self) -> ccxt_async.coinbase:
+        current_loop = asyncio.get_running_loop()
+        if self._ccxt_client is not None:
+            client_loop = getattr(self._ccxt_client, "asyncio_loop", None) or getattr(self, "_client_loop", None)
+            if client_loop is not None and (client_loop.is_closed() or client_loop is not current_loop):
+                self._ccxt_client = None
         if self._ccxt_client is None:
+            self._client_loop = current_loop
             self._ccxt_client = ccxt_async.coinbase({
                 "enableRateLimit": True,
                 "timeout": 10000,
+                "asyncio_loop": current_loop,
             })
         return self._ccxt_client
 
     async def close(self) -> None:
         if self._ccxt_client is not None:
-            await self._ccxt_client.close()
+            try:
+                await self._ccxt_client.close()
+            except Exception:
+                pass
             self._ccxt_client = None
+            self._client_loop = None
 
     async def fetch_markets(self) -> Dict[str, Instrument]:
         """Fetch spot instruments from Coinbase."""

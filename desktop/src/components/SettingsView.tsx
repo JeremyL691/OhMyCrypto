@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { Shield, Bell, HardDrive, FileArchive, Download } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Shield, Bell, HardDrive, FileArchive, Download, Check } from "lucide-react";
+import { api } from "../ipc";
 
 export const SettingsView: React.FC = () => {
   const [retentionDays, setRetentionDays] = useState(7);
@@ -7,6 +8,56 @@ export const SettingsView: React.FC = () => {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [speechEnabled, setSpeechEnabled] = useState(false);
   const [quietMode, setQuietMode] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    api.getSettings().then((s) => {
+      if (!mounted || !s) return;
+      setRetentionDays(s.retention_days);
+      setRawQuotaGb(s.raw_quota_gb);
+      setAudioEnabled(s.audio_enabled);
+      setSpeechEnabled(s.speech_enabled);
+      setQuietMode(s.quiet_mode);
+    }).catch((err) => {
+      console.warn("Failed to load settings:", err);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleUpdate = (updates: Partial<{
+    retention_days: number;
+    raw_quota_gb: number;
+    audio_enabled: boolean;
+    speech_enabled: boolean;
+    quiet_mode: boolean;
+  }>) => {
+    api.updateSettings(updates).catch((err) => {
+      console.error("Failed to persist settings:", err);
+    });
+  };
+
+  const handleExportBundle = async (mode: "complete" | "sanitized") => {
+    try {
+      const bundle = await api.exportReplayBundle({ mode });
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ohmycrypto-replay-${mode}-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setExportMessage(`Exported ${mode} replay bundle successfully!`);
+      setTimeout(() => setExportMessage(null), 4000);
+    } catch (err: any) {
+      setExportMessage(`Export failed: ${err.message || String(err)}`);
+      setTimeout(() => setExportMessage(null), 4000);
+    }
+  };
 
   return (
     <section aria-labelledby="settings-title">
@@ -27,7 +78,11 @@ export const SettingsView: React.FC = () => {
               type="number"
               className="form-input"
               value={retentionDays}
-              onChange={(e) => setRetentionDays(parseInt(e.target.value, 10))}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10) || 7;
+                setRetentionDays(val);
+                handleUpdate({ retention_days: val });
+              }}
             />
           </div>
           <div className="form-group">
@@ -37,7 +92,11 @@ export const SettingsView: React.FC = () => {
               type="number"
               className="form-input"
               value={rawQuotaGb}
-              onChange={(e) => setRawQuotaGb(parseInt(e.target.value, 10))}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10) || 2;
+                setRawQuotaGb(val);
+                handleUpdate({ raw_quota_gb: val });
+              }}
             />
           </div>
           <p style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -58,7 +117,11 @@ export const SettingsView: React.FC = () => {
                 checked={audioEnabled && !quietMode}
                 disabled={quietMode}
                 aria-describedby="quiet-mode-hint"
-                onChange={(e) => setAudioEnabled(e.target.checked)}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setAudioEnabled(val);
+                  handleUpdate({ audio_enabled: val });
+                }}
               />
               Audible Chime (macOS afplay)
             </label>
@@ -69,7 +132,11 @@ export const SettingsView: React.FC = () => {
                 checked={speechEnabled && !quietMode}
                 disabled={quietMode}
                 aria-describedby="quiet-mode-hint"
-                onChange={(e) => setSpeechEnabled(e.target.checked)}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setSpeechEnabled(val);
+                  handleUpdate({ speech_enabled: val });
+                }}
               />
               Voice Announcement (macOS say)
             </label>
@@ -78,7 +145,11 @@ export const SettingsView: React.FC = () => {
                 id="settings-quiet-mode"
                 type="checkbox"
                 checked={quietMode}
-                onChange={(e) => setQuietMode(e.target.checked)}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setQuietMode(val);
+                  handleUpdate({ quiet_mode: val });
+                }}
               />
               Quiet Mode (suppress all playback; records explicit suppression)
             </label>
@@ -97,13 +168,18 @@ export const SettingsView: React.FC = () => {
         <p style={{ fontSize: 12, marginBottom: 8 }}>
           All database state is stored locally on this machine. No telemetry or automated upload occurs.
         </p>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-sm">
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button className="btn btn-sm" onClick={() => handleExportBundle("complete")}>
             <Download size={12} /> Export Complete Replay Bundle
           </button>
-          <button className="btn btn-sm">
+          <button className="btn btn-sm" onClick={() => handleExportBundle("sanitized")}>
             <Download size={12} /> Export Sanitized Share Bundle (Omit Private Balances)
           </button>
+          {exportMessage && (
+            <span style={{ fontSize: 12, color: "var(--color-primary)", display: "flex", alignItems: "center", gap: 4 }}>
+              <Check size={14} /> {exportMessage}
+            </span>
+          )}
         </div>
       </div>
 

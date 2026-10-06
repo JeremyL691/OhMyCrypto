@@ -1,35 +1,35 @@
 {
-  "verification_id": "verify_live_1791251691",
+  "verification_id": "verify_live_1791257745",
   "gate": "live",
-  "commit": "a8b868a8553f7a98ecb7375e31e4771e1813db3a",
-  "timestamp_start_utc": "2026-10-06T01:54:51.281808+00:00",
-  "timestamp_end_utc": "2026-10-06T01:54:56.537042+00:00",
+  "commit": "bcb7531307410d7e217e09c6a058f39983010fa5",
+  "timestamp_start_utc": "2026-10-06T03:35:45.398907+00:00",
+  "timestamp_end_utc": "2026-10-06T03:35:51.045344+00:00",
   "platform": {
     "system": "Darwin",
     "machine": "arm64",
     "python": "3.12.15"
   },
   "passed": true,
-  "duration_sec": 60,
+  "duration_sec": 600,
   "checks": [
     {
       "check": "coinbase_spot_l2_snapshot",
       "symbol": "BTC/USDT",
-      "latency_ms": 1878.47,
+      "latency_ms": 2301.87,
       "bids_count": 20,
       "asks_count": 20,
-      "top_bid": "85634.8",
-      "top_ask": "85660.24",
+      "top_bid": "85386.18",
+      "top_ask": "85410.19",
       "passed": true
     },
     {
       "check": "kraken_spot_l2_snapshot",
       "symbol": "BTC/USDT",
-      "latency_ms": 2254.72,
+      "latency_ms": 2376.96,
       "bids_count": 20,
       "asks_count": 20,
-      "top_bid": "85650.2",
-      "top_ask": "85650.3",
+      "top_bid": "85410.1",
+      "top_ask": "85413.3",
       "passed": true
     }
   ]

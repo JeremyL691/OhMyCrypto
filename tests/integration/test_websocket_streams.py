@@ -139,10 +139,11 @@ def test_orderbook_depth_truncation_bounds_memory():
     assert book.sorted_asks(5)[0].price == Decimal("1000")
 
 
-def test_format_venue_num_strips_trailing_zeros():
-    assert format_venue_num(Decimal("100.50000")) == "100.5"
-    assert format_venue_num(Decimal("100.00000")) == "100"
-    assert format_venue_num(Decimal("0.000123")) == "0.000123"
+def test_format_venue_num_kraken_v2():
+    assert format_venue_num(Decimal("45285.2")) == "452852"
+    assert format_venue_num(Decimal("0.00100000")) == "100000"
+    assert format_venue_num("0.00100000") == "100000"
+    assert format_venue_num(Decimal("0")) == "0"
 
 
 def test_checksum_computation_is_stable_and_ordered():
@@ -154,7 +155,7 @@ def test_checksum_computation_is_stable_and_ordered():
     )
     import zlib
 
-    expected = zlib.crc32("500100.8500201.2500001.5499902".encode("utf-8"))
+    expected = zlib.crc32("50010008500200012500000015499900020".encode("utf-8"))
     assert book.compute_checksum() == expected
     assert book.verify_checksum(expected) is True
 

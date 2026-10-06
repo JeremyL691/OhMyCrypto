@@ -142,6 +142,12 @@ class BookState:
     def __post_init__(self):
         if not self.venue or not self.symbol:
             raise ValueError("BookState must have non-empty venue and symbol")
+        for i in range(len(self.bids) - 1):
+            if self.bids[i].price < self.bids[i + 1].price:
+                raise ValueError(f"Unsorted bids on {self.venue} {self.symbol}: {self.bids[i].price} < {self.bids[i + 1].price}")
+        for i in range(len(self.asks) - 1):
+            if self.asks[i].price > self.asks[i + 1].price:
+                raise ValueError(f"Unsorted asks on {self.venue} {self.symbol}: {self.asks[i].price} > {self.asks[i + 1].price}")
         if len(self.bids) > 0 and len(self.asks) > 0:
             best_bid = self.bids[0].price
             best_ask = self.asks[0].price
@@ -209,6 +215,7 @@ class OpportunityResult:
     input_hash: str
     config_hash: str
     kernel_version: str = "1.0.0"
+    result_hash: str = ""
 
 
 @dataclass(frozen=True)
