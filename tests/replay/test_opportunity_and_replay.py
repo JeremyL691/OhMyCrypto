@@ -164,3 +164,79 @@ def test_export_and_replay_cycle():
         sanitized_bundle = service.export_replay_bundle(event.event_id, mode="sanitized")
         assert "private_balances" in sanitized_bundle["omissions"]
 
+
+def test_import_replay_bundle_and_traversal_rejection():
+    """Verify import of replay bundle into fresh store and rejection of path traversal."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "orig.sqlite3")
+        conn = create_connection(db_path)
+        run_migrations(conn)
+        repo = StorageRepository(conn)
+        arch = ArchiveManager(archive_dir=os.path.join(tmpdir, "arch1"))
+        service = OpportunityService(repo, arch)
+
+        inst = Instrument("BTC/USDT", "BTC", "USDT", "coinbase", "BTC-USDT")
+        fee = FeeProfile("generic", taker_rate=Decimal("0.0025"))
+        asks = (BookLevel(price=Decimal("60000.00"), amount=Decimal("1.0")),)
+        bids = (BookLevel(price=Decimal("60500.00"), amount=Decimal("1.0")),)
+        b_buy = BookState("coinbase", "BTC/USDT", (), asks, "snap", 1, None, "unknown", 1000, 1000)
+        b_sell = BookState("kraken", "BTC/USDT", bids, (), "snap", 1, None, "unknown", 1000, 1000)
+
+        event = service.evaluate("BTC/USDT", b_buy, b_sell, Decimal("1000.0"), fee, fee, inst, inst)
+        bundle = service.export_replay_bundle(event.event_id, mode="complete")
+
+        # Import into fresh store
+        db2 = os.path.join(tmpdir, "imported.sqlite3")
+        conn2 = create_connection(db2)
+        run_migrations(conn2)
+        repo2 = StorageRepository(conn2)
+        arch2 = ArchiveManager(archive_dir=os.path.join(tmpdir, "arch2"))
+        service2 = OpportunityService(repo2, arch2)
+
+        imported_id = service2.import_replay_bundle(bundle)
+        assert imported_id == event.event_id
+
+        # Replay imported bundle in service2
+        replay_res = service2.replay_bundle(bundle)
+        assert replay_res["status"] == "REPLAYED"
+        assert replay_res["is_exact_match"] is True
+
+        # Test C22: Path traversal rejection
+        bad_bundle = json.loads(json.dumps(bundle))
+        bad_bundle["manifest"]["event_id"] = "../../../etc/passwd"
+        with pytest.raises(ValueError, match="Path traversal"):
+            service2.import_replay_bundle(bad_bundle)
+
+
+def test_durable_outbox_integration():
+    """Verify notification records are durable in SQLite and survive reload."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "outbox_test.sqlite3")
+        conn = create_connection(db_path)
+        run_migrations(conn)
+        repo = StorageRepository(conn)
+        arch = ArchiveManager(archive_dir=os.path.join(tmpdir, "arch"))
+
+        service = OpportunityService(repo, arch)
+        inst = Instrument("BTC/USDT", "BTC", "USDT", "coinbase", "BTC-USDT")
+        fee = FeeProfile("generic", taker_rate=Decimal("0.0025"))
+        asks = (BookLevel(price=Decimal("60000.00"), amount=Decimal("1.0")),)
+        bids = (BookLevel(price=Decimal("60500.00"), amount=Decimal("1.0")),)
+        b_buy = BookState("coinbase", "BTC/USDT", (), asks, "snap", 1, None, "unknown", 1000, 1000)
+        b_sell = BookState("kraken", "BTC/USDT", bids, (), "snap", 1, None, "unknown", 1000, 1000)
+
+        event = service.evaluate("BTC/USDT", b_buy, b_sell, Decimal("1000.0"), fee, fee, inst, inst)
+        assert event.notification_state == "alert"
+
+        # Outbox should have recorded notification in SQLite
+        records = repo.list_notifications()
+        assert len(records) == 1
+        assert records[0]["event_id"] == event.event_id
+        assert records[0]["state"] == "pending"
+
+        # Simulate service restart: new outbox reloads records from repo
+        service_reloaded = OpportunityService(repo, arch)
+        reloaded_records = service_reloaded.outbox.list_records()
+        assert len(reloaded_records) == 1
+        assert reloaded_records[0].event_id == event.event_id
+

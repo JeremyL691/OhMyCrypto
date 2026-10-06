@@ -48,10 +48,14 @@ def decimal_validator(val: Any, field_name: str, allow_zero: bool = True, allow_
 
 
 class DecimalJSONEncoder(json.JSONEncoder):
-    """JSON Encoder that converts Decimal to string and forbids non-finite floats."""
+    """JSON Encoder that converts Decimal to string, serializes dataclasses/DTOs, and forbids non-finite floats."""
     def default(self, obj: Any) -> Any:
         if isinstance(obj, Decimal):
             return str(obj)
+        if hasattr(obj, "to_dict") and callable(obj.to_dict):
+            return obj.to_dict()
+        if hasattr(obj, "__dataclass_fields__"):
+            return asdict(obj)
         return super().default(obj)
 
 
@@ -194,6 +198,23 @@ class FillResult:
     levels_consumed: int
     is_complete: bool
     rejection_reason: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "side": self.side,
+            "requested_amount": str(self.requested_amount),
+            "acquired_base": str(self.acquired_base),
+            "quote_spent": str(self.quote_spent),
+            "quote_received": str(self.quote_received),
+            "avg_price": str(self.avg_price),
+            "fee_quote": str(self.fee_quote),
+            "fee_base": str(self.fee_base),
+            "residual_quote": str(self.residual_quote),
+            "residual_base": str(self.residual_base),
+            "levels_consumed": self.levels_consumed,
+            "is_complete": self.is_complete,
+            "rejection_reason": self.rejection_reason,
+        }
 
 
 @dataclass(frozen=True)

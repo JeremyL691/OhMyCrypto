@@ -109,4 +109,15 @@ def test_r12_bounded_100_cycle_scenario_and_lifecycle(tmp_path, monkeypatch):
     assert len(events) > 0
     assert svc.status_snapshot()["last_cycle_error"] is None
 
+    # 8. Check resource and memory bounds (Section 12.2: RSS <= 512MiB)
+    import resource
+    rusage = resource.getrusage(resource.RUSAGE_SELF)
+    max_rss_bytes = rusage.ru_maxrss  # On macOS, ru_maxrss is in bytes
+    max_rss_mib = max_rss_bytes / (1024 * 1024)
+    assert max_rss_mib <= 512.0, f"Engine RSS {max_rss_mib:.2f} MiB exceeded 512 MiB bound"
+
+    # 9. Verify archive quota and storage bounds
+    quota_status = svc.opportunity.archives.get_quota_status()
+    assert quota_status["total_bytes"] <= svc.opportunity.archives.quota_bytes
+
     svc.close()

@@ -1,0 +1,31 @@
+{
+  "record_id": "goal_driven_plan_revision_20261006",
+  "recorded_at_utc": "2026-10-06T07:44:52.448365+00:00",
+  "baseline_commit": "35361dee0fb20d65e3045a007afecdd813ee2cb6",
+  "previous_spec_version": "1.1.0",
+  "spec_version": "1.2.0",
+  "spec_sha256": "26ab2c345f263057c0ae362e89ba51ed2e67133708636f8255c2d4d1517ffd28",
+  "generation": 19,
+  "completion": "IN_PROGRESS",
+  "scope": "Documentation/state and preserved audit snapshots only; no product implementation or new gate pass.",
+  "active_goals": [
+    "G00",
+    "G01",
+    "G02",
+    "G03",
+    "G04",
+    "G05",
+    "G06",
+    "G07",
+    "G08",
+    "G09",
+    "G10",
+    "G11",
+    "G12"
+  ],
+  "authorizations_preserved": true,
+  "budget_preserved": true,
+  "cancelled_soak_preserved": true,
+  "prior_snapshot_directory": ".agent/evidence/plan-revision-20261006",
+  "review_path": ".agent/evidence/plan-revision-20261006/release-review.md"
+}

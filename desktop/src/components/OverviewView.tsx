@@ -13,23 +13,36 @@ export const OverviewView: React.FC<OverviewProps> = ({ status, opportunities, o
   const [symbol, setSymbol] = useState("BTC/USDT");
   const [budget, setBudget] = useState("1000.00");
   const [loading, setLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleStart = async () => {
     setLoading(true);
-    await api.startMonitor(symbol, budget);
-    setLoading(false);
-    onRefresh();
+    setActionError(null);
+    try {
+      await api.startMonitor(symbol, budget);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+      onRefresh();
+    }
   };
 
   const handlePause = async () => {
     setLoading(true);
-    if (status.status === "monitoring") {
-      await api.pauseMonitor();
-    } else {
-      await api.resumeMonitor();
+    setActionError(null);
+    try {
+      if (status.status === "monitoring") {
+        await api.pauseMonitor();
+      } else {
+        await api.resumeMonitor();
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+      onRefresh();
     }
-    setLoading(false);
-    onRefresh();
   };
 
   return (
@@ -55,6 +68,12 @@ export const OverviewView: React.FC<OverviewProps> = ({ status, opportunities, o
           )}
         </div>
       </div>
+
+      {actionError && (
+        <div className="demo-banner" style={{ borderLeftColor: "var(--color-danger)", marginBottom: "var(--space-4)" }} role="alert">
+          <span><strong>Action Error:</strong> {actionError}</span>
+        </div>
+      )}
 
       <div className="grid-3">
         <article className="panel-card">

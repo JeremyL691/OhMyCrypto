@@ -24,6 +24,10 @@ export interface FillDetail {
   levels_consumed: number;
   is_complete: boolean;
   rejection_reason?: string;
+  spent_quote?: string;
+  proceeds_quote?: string;
+  fee_paid?: string;
+  effective_avg_price?: string;
 }
 
 export interface OpportunityItem {

@@ -1,9 +1,9 @@
 {
-  "verification_id": "verify_native_1791258094",
+  "verification_id": "verify_native_1791277412",
   "gate": "native",
-  "commit": "11db10ccb6f7060ed1793600b24e45fa22cdf182",
-  "timestamp_start_utc": "2026-10-06T03:41:34.188750+00:00",
-  "timestamp_end_utc": "2026-10-06T03:41:42.737882+00:00",
+  "commit": "35361dee0fb20d65e3045a007afecdd813ee2cb6",
+  "timestamp_start_utc": "2026-10-06T09:03:32.936867+00:00",
+  "timestamp_end_utc": "2026-10-06T09:03:34.724121+00:00",
   "platform": {
     "system": "Darwin",
     "machine": "arm64",
@@ -22,7 +22,7 @@
       "check": "codesign_verification",
       "passed": true,
       "exit_code": 0,
-      "output": "Executable=/Users/jeremyliu/Desktop/Projects/OhMyCrypto/release/candidate/OhMyCrypto.app/Contents/MacOS/OhMyCrypto\nIdentifier=org.ohmycrypto.desktop\nFormat=app bundle with Mach-O thin (x86_64)\nCodeDirectory v=20400 size=64911 flags=0x2(adhoc) hashes=2022+3 location=embedded\nVersionPlatform=1\nVersionMin=658432\nVersionSDK=1769472\nHash type=sha256 size=32\nCandidateCDHash sha256=24c0d824089527cc5bd49717b5234ac99f9cb9e4\nCandidateCDHashFull sha256=24c0d824089527cc5bd49717b5234ac99f9cb9e40e0dc619616d04b7cced92f3\nHash choices=sha256\nCMSDigest=24c0d824089527cc5bd49717b5234ac99f9cb9e40e0dc619616d04b7cced92f3\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6529024\nExecutable Segment flags=0x1\nPage size=4096\nCDHash=24c0d824089527cc5bd49717b5234ac99f9cb9e4\nSignature=adhoc\nInfo.plist entries=11\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1",
+      "output": "Executable=/Users/jeremyliu/Desktop/Projects/OhMyCrypto/release/candidate/OhMyCrypto.app/Contents/MacOS/OhMyCrypto\nIdentifier=org.ohmycrypto.desktop\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=12367 flags=0x2(adhoc) hashes=380+3 location=embedded\nVersionPlatform=1\nVersionMin=720896\nVersionSDK=1769472\nHash type=sha256 size=32\nCandidateCDHash sha256=d3ea9936eaf37db51c94d7ae3f3cea07c738e0d4\nCandidateCDHashFull sha256=d3ea9936eaf37db51c94d7ae3f3cea07c738e0d40a307500933433d9962f4ad1\nHash choices=sha256\nCMSDigest=d3ea9936eaf37db51c94d7ae3f3cea07c738e0d40a307500933433d9962f4ad1\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6062080\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=d3ea9936eaf37db51c94d7ae3f3cea07c738e0d4\nSignature=adhoc\nInfo.plist entries=11\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=4\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1",
       "verify_output": ""
     },
     {
@@ -30,7 +30,7 @@
       "path": "release/candidate/OhMyCrypto.app/Contents/MacOS/sidecar/ohmycrypto-sidecar",
       "passed": true,
       "exit_code": 0,
-      "duration_ms": 8403.9,
+      "duration_ms": 1707.6,
       "response": {
         "id": "ping_1",
         "protocol_version": "1.0.0",
@@ -38,11 +38,11 @@
         "payload": {
           "pong": true,
           "version": "1.0.0",
-          "pid": 29921,
-          "server_time_ms": 1791258102617
+          "pid": 18453,
+          "server_time_ms": 1791277414628
         }
       },
-      "stderr_tail": "[sidecar] Started OhMyCrypto sidecar (PID=29921)\n[sidecar] Stdin closed (EOF). Parent terminated. Exiting.\n[sidecar] Sidecar cleanly exited."
+      "stderr_tail": "[sidecar] Started OhMyCrypto sidecar (PID=18453)\n[sidecar] Stdin closed (EOF). Parent terminated. Exiting.\n[sidecar] Sidecar cleanly exited."
     }
   ]
 }

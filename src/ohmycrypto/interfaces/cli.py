@@ -10,7 +10,10 @@ from __future__ import annotations
 import argparse
 from decimal import Decimal
 import json
+import os
 import sys
+import tempfile
+from typing import Optional, Sequence
 
 from ohmycrypto.domain.models import DecimalJSONEncoder, Instrument, FeeProfile, BookState, BookLevel
 from ohmycrypto.domain.kernel import evaluate_cross_venue_opportunity
@@ -45,6 +48,12 @@ def create_parser() -> argparse.ArgumentParser:
     # replay subcommand
     replay_p = subparsers.add_parser("replay", help="Replay stored or exported event bundle")
     replay_p.add_argument("--bundle", required=True, help="Path to replay bundle JSON file")
+
+    # diagnostics subcommand
+    diag_p = subparsers.add_parser("diagnostics", help="Diagnostic utilities and reproduction")
+    diag_sub = diag_p.add_subparsers(dest="diag_action", required=True)
+    reproduce_p = diag_sub.add_parser("reproduce", help="Reproduce incident bundle offline")
+    reproduce_p.add_argument("--bundle", required=True, help="Path to incident bundle JSON file")
 
     return parser
 
@@ -123,18 +132,130 @@ def run_verify(args: argparse.Namespace) -> int:
     return 0
 
 
-def main() -> int:
+def run_compare(args: argparse.Namespace) -> int:
+    """Compare execution costs across venues."""
+    amount = Decimal(args.amount)
+    symbol = args.symbol
+    side = args.side
+
+    from ohmycrypto.services.cost import CostAdvisorService
+    from ohmycrypto.storage.repository import StorageRepository
+    from ohmycrypto.storage.db import create_connection
+    from ohmycrypto.storage.migrations import run_migrations
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        conn = create_connection(os.path.join(tmpdir, "cli_cost.db"))
+        run_migrations(conn)
+        repo = StorageRepository(conn)
+        advisor = CostAdvisorService(repo)
+
+        # Synthesize baseline book depths if live feeds are not connected
+        default_price = Decimal("85000")
+        sample_bids = (BookLevel(price=default_price - Decimal("10"), amount=Decimal("5.0")),)
+        sample_asks = (BookLevel(price=default_price + Decimal("10"), amount=Decimal("5.0")),)
+
+        books = {
+            "coinbase": BookState(
+                venue="coinbase",
+                symbol=symbol,
+                bids=sample_bids,
+                asks=sample_asks,
+                snapshot_origin="cli_sample",
+                applied_sequence=1,
+                source_time_ms=None,
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=0,
+                local_receipt_mono_ns=0,
+            ),
+            "kraken": BookState(
+                venue="kraken",
+                symbol=symbol,
+                bids=sample_bids,
+                asks=sample_asks,
+                snapshot_origin="cli_sample",
+                applied_sequence=1,
+                source_time_ms=None,
+                source_time_meaning="unknown",
+                local_receipt_utc_ms=0,
+                local_receipt_mono_ns=0,
+            ),
+        }
+        res = advisor.compare_single_venue(
+            symbol=symbol,
+            side=side,
+            amount=amount,
+            books=books,
+        )
+        sys.stdout.write(json.dumps(res, indent=2, cls=DecimalJSONEncoder) + "\n")
+    return 0
+
+
+def run_replay(args: argparse.Namespace) -> int:
+    """Replay exported opportunity bundle deterministically."""
+    if not os.path.exists(args.bundle):
+        sys.stderr.write(f"Error: Replay bundle file not found: {args.bundle}\n")
+        sys.exit(1)
+
+    try:
+        with open(args.bundle, "r", encoding="utf-8") as f:
+            bundle = json.load(f)
+    except Exception as err:
+        sys.stderr.write(f"Error parsing replay bundle: {err}\n")
+        sys.exit(1)
+
+    from ohmycrypto.storage.repository import StorageRepository
+    from ohmycrypto.storage.archives import ArchiveManager
+    from ohmycrypto.storage.db import create_connection
+    from ohmycrypto.storage.migrations import run_migrations
+    from ohmycrypto.services.opportunity import OpportunityService
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        conn = create_connection(os.path.join(tmpdir, "cli_replay.db"))
+        run_migrations(conn)
+        repo = StorageRepository(conn)
+        archives = ArchiveManager(tmpdir)
+        opp_svc = OpportunityService(repo, archives)
+        res = opp_svc.replay_bundle(bundle)
+        sys.stdout.write(json.dumps(res, indent=2, cls=DecimalJSONEncoder) + "\n")
+        return 0 if res.get("status") == "REPLAYED" else 1
+
+
+def run_diagnostics(args: argparse.Namespace) -> int:
+    """Run diagnostics offline reproduction."""
+    if args.diag_action == "reproduce":
+        if not os.path.exists(args.bundle):
+            sys.stderr.write(f"Error: Incident bundle file not found: {args.bundle}\n")
+            sys.exit(1)
+
+        try:
+            with open(args.bundle, "r", encoding="utf-8") as f:
+                bundle = json.load(f)
+        except Exception as err:
+            sys.stderr.write(f"Error parsing incident bundle: {err}\n")
+            sys.exit(1)
+
+        from ohmycrypto.services.diagnostics import DiagnosticService
+        res = DiagnosticService.reproduce_incident(bundle)
+        sys.stdout.write(json.dumps(res, indent=2) + "\n")
+        return 0 if res.get("status") == "REPRODUCED" else 1
+    return 0
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = create_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.subcommand == "status":
         sys.stdout.write(json.dumps({"status": "ready", "version": "1.0.0"}) + "\n")
         return 0
     elif args.subcommand == "verify":
         return run_verify(args)
-    elif args.subcommand in ("compare", "replay"):
-        sys.stdout.write(json.dumps({"subcommand": args.subcommand, "status": "pending_storage"}) + "\n")
-        return 0
+    elif args.subcommand == "compare":
+        return run_compare(args)
+    elif args.subcommand == "replay":
+        return run_replay(args)
+    elif args.subcommand == "diagnostics":
+        return run_diagnostics(args)
     return 0
 
 

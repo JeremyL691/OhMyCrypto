@@ -138,6 +138,7 @@ class KrakenConnector(BaseSpotConnector):
                 sequence=book.last_sequence,
             )
             req.resolve()
+            self._publish_book(symbol, book, origin="resync_snapshot")
         except Exception as exc:  # noqa: BLE001 - resync failure must not kill stream
             self.health.record_failure(time.monotonic_ns(), f"resync failed: {exc}")
             logger.warning("resync failed for %s: %s", symbol, exc)
@@ -220,9 +221,8 @@ class KrakenConnector(BaseSpotConnector):
                 if isinstance(checksum, int):
                     if book.verify_checksum(checksum):
                         book.last_checksum = checksum
+                        self.health.is_degraded = False
                     else:
-                        # Always recorded. The book is only rebuilt in strict
-                        # mode; see the strict_checksum note in __init__.
                         self.health.checksum_failures += 1
                         self.health.is_degraded = True
                         if self.strict_checksum:
@@ -276,6 +276,13 @@ class KrakenConnector(BaseSpotConnector):
     def _publish_book(self, symbol: str, book: OrderbookMaintenance, origin: str) -> None:
         """Materialize a validated BookState from maintenance state."""
         try:
+            if origin.endswith("snapshot") and book.snapshot_count > 1:
+                quality = "resynced"
+            elif self.health.is_degraded:
+                quality = "degraded"
+            else:
+                quality = "clean"
+
             state = BookState(
                 venue=self.venue,
                 symbol=symbol,
@@ -287,7 +294,7 @@ class KrakenConnector(BaseSpotConnector):
                 source_time_meaning="book_update",
                 local_receipt_utc_ms=int(time.time() * 1000),
                 local_receipt_mono_ns=time.monotonic_ns(),
-                quality_status="resynced" if origin.endswith("snapshot") and book.snapshot_count > 1 else "clean",
+                quality_status=quality,
                 checksum=str(book.last_checksum) if book.last_checksum is not None else None,
             )
         except ValueError:
@@ -297,7 +304,8 @@ class KrakenConnector(BaseSpotConnector):
             return
         self.set_orderbook(symbol, state)
         self.health.record_success(time.monotonic_ns())
-        self.health.is_degraded = False
+        if origin.endswith("snapshot"):
+            self.health.is_degraded = False
 
     async def start_stream(
         self,

@@ -21,11 +21,33 @@ from ohmycrypto.domain.models import NotificationRecord
 class NotificationOutbox:
     """In-memory and durable outbox manager for desktop notifications."""
 
-    def __init__(self, quiet_mode: bool = False, max_retries: int = 2):
+    def __init__(self, repo: Optional[Any] = None, quiet_mode: bool = False, max_retries: int = 2):
+        self.repo = repo
         self.quiet_mode = quiet_mode
         self.max_retries = max_retries
         self._records: Dict[str, NotificationRecord] = {}
         self._next_id: int = 1
+
+        if self.repo is not None:
+            try:
+                for row in self.repo.list_notifications(limit=1000):
+                    rec = NotificationRecord(
+                        notification_id=row["notification_id"],
+                        event_id=row["event_id"],
+                        episode_id=row["episode_id"],
+                        route_key=row["route_key"],
+                        mode=row["mode"],
+                        state=row["state"],
+                        decision_utc_ms=row["decision_utc_ms"],
+                        enqueue_utc_ms=row["enqueue_utc_ms"],
+                        delivery_utc_ms=row["delivery_utc_ms"],
+                        attempts=row["attempts"],
+                        last_error=row["last_error"],
+                        suppression_reason=row["suppression_reason"],
+                    )
+                    self._records[rec.notification_id] = rec
+            except Exception:
+                pass
 
     def enqueue(
         self,
@@ -72,6 +94,11 @@ class NotificationOutbox:
             )
 
         self._records[notif_id] = rec
+        if self.repo is not None:
+            try:
+                self.repo.save_notification(rec)
+            except Exception:
+                pass
         return rec
 
     def get(self, notification_id: str) -> Optional[NotificationRecord]:
@@ -82,6 +109,11 @@ class NotificationOutbox:
 
     def update_record(self, record: NotificationRecord) -> None:
         self._records[record.notification_id] = record
+        if self.repo is not None:
+            try:
+                self.repo.save_notification(record)
+            except Exception:
+                pass
 
 
 def deliver_macos_notification(

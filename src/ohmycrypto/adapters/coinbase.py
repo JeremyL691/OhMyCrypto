@@ -101,6 +101,7 @@ class CoinbaseConnector(BaseSpotConnector):
                 sequence=book.last_sequence,
             )
             req.resolve()
+            self._publish_book(symbol, book, origin="resync_snapshot")
         except Exception as exc:  # noqa: BLE001 - resync failure must not kill stream
             self.health.record_failure(time.monotonic_ns(), f"resync failed: {exc}")
             logger.warning("resync failed for %s: %s", symbol, exc)
@@ -166,6 +167,13 @@ class CoinbaseConnector(BaseSpotConnector):
             return
 
         if event_type == "update":
+            if book.snapshot_count == 0:
+                self.health.sequence_gaps += 1
+                self.health.is_degraded = True
+                await self._resync_snapshot(symbol, "missing_snapshot")
+                return
+            if self.health.is_degraded:
+                return
             book.apply_deltas(bid_deltas, ask_deltas)
             self._publish_book(symbol, book, origin="stream_delta")
 
@@ -181,6 +189,9 @@ class CoinbaseConnector(BaseSpotConnector):
 
     def _publish_book(self, symbol: str, book: OrderbookMaintenance, origin: str) -> None:
         """Materialize a validated BookState from maintenance state."""
+        if self.health.is_degraded and not origin.endswith("snapshot"):
+            return
+
         try:
             state = BookState(
                 venue=self.venue,
@@ -202,7 +213,8 @@ class CoinbaseConnector(BaseSpotConnector):
             return
         self.set_orderbook(symbol, state)
         self.health.record_success(time.monotonic_ns())
-        self.health.is_degraded = False
+        if origin.endswith("snapshot"):
+            self.health.is_degraded = False
 
     async def start_stream(
         self,

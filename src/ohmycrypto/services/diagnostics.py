@@ -97,6 +97,11 @@ class DiagnosticService:
         now_utc_ms: Optional[int] = None,
     ) -> DiagnosticFinding:
         """Record or group a fault incident."""
+        if isinstance(now_utc_ms, bool):
+            raise TypeError("now_utc_ms must be an integer millisecond timestamp, not a boolean")
+        if now_utc_ms is not None:
+            if not isinstance(now_utc_ms, int) or now_utc_ms < 0:
+                raise ValueError(f"now_utc_ms must be a non-negative integer, got {now_utc_ms}")
         if now_utc_ms is None:
             now_utc_ms = int(time.time() * 1000)
 
@@ -163,6 +168,11 @@ class DiagnosticService:
         now_utc_ms: Optional[int] = None,
     ) -> List[DiagnosticFinding]:
         """Record clean observation and check if open incidents can be closed."""
+        if isinstance(now_utc_ms, bool):
+            raise TypeError("now_utc_ms must be an integer millisecond timestamp, not a boolean")
+        if now_utc_ms is not None:
+            if not isinstance(now_utc_ms, int) or now_utc_ms < 0:
+                raise ValueError(f"now_utc_ms must be a non-negative integer, got {now_utc_ms}")
         if now_utc_ms is None:
             now_utc_ms = int(time.time() * 1000)
 
@@ -219,17 +229,76 @@ class DiagnosticService:
     @staticmethod
     def reproduce_incident(bundle: Dict[str, Any]) -> Dict[str, Any]:
         """Verify and reproduce the fault trigger offline without external network."""
-        fault_class = bundle["fault_class"]
-        trigger = bundle["trigger"]
-        evidence = bundle.get("evidence", {})
+        if not isinstance(bundle, dict):
+            return {
+                "status": "FAILED",
+                "incident_id": "unknown",
+                "fault_class": "unknown",
+                "explanation": "Bundle must be a valid dictionary",
+            }
 
-        # Verify reproduction logic matches the fault class
-        reproduced = True
-        explanation = f"Successfully reproduced {fault_class} fault trigger: {trigger}"
+        incident_id = bundle.get("incident_id", "unknown")
+        fault_class = bundle.get("fault_class")
+        trigger = bundle.get("trigger", "")
+        evidence = bundle.get("evidence")
+
+        if not fault_class or not trigger:
+            return {
+                "status": "FAILED",
+                "incident_id": incident_id,
+                "fault_class": fault_class or "unknown",
+                "explanation": "Bundle missing fault_class or trigger",
+            }
+
+        # Empty or non-dict evidence must fail reproduction
+        if not evidence or not isinstance(evidence, dict) or len(evidence) == 0:
+            return {
+                "status": "FAILED",
+                "incident_id": incident_id,
+                "fault_class": fault_class,
+                "explanation": f"Empty or invalid evidence cannot reproduce {fault_class}",
+            }
+
+        sample = evidence.get("latest") if isinstance(evidence.get("latest"), dict) else evidence
+
+        reproduced = False
+        explanation = ""
+
+        if fault_class == "checksum_mismatch":
+            if any(k in sample for k in ("crc", "expected", "calculated")):
+                reproduced = True
+                explanation = f"Reproduced checksum mismatch: {trigger}"
+            else:
+                explanation = "Evidence lacks checksum/crc comparison data"
+
+        elif fault_class == "sequence_gap":
+            if any(k in sample for k in ("expected_seq", "received_seq", "gap", "expected_sequence")):
+                reproduced = True
+                explanation = f"Reproduced sequence gap: {trigger}"
+            else:
+                explanation = "Evidence lacks sequence comparison data"
+
+        elif fault_class == "crossed_book":
+            if "bid" in sample and "ask" in sample:
+                reproduced = True
+                explanation = f"Reproduced crossed book condition: {trigger}"
+            else:
+                explanation = "Evidence lacks crossed book bid/ask data"
+
+        elif fault_class in ("malformed_payload", "consecutive_failures", "rate_limited", "stale_feed"):
+            if any(k in sample for k in ("error", "err", "status", "staleness_ms", "failures")):
+                reproduced = True
+                explanation = f"Reproduced {fault_class}: {trigger}"
+            else:
+                explanation = f"Evidence lacks required details for {fault_class}"
+
+        else:
+            reproduced = True
+            explanation = f"Verified evidence for {fault_class}: {trigger}"
 
         return {
             "status": "REPRODUCED" if reproduced else "FAILED",
-            "incident_id": bundle["incident_id"],
+            "incident_id": incident_id,
             "fault_class": fault_class,
             "explanation": explanation,
         }

@@ -150,6 +150,27 @@ class StorageRepository:
             is_active=bool(row["is_active"]),
         )
 
+    def list_active_episodes(self) -> List[EpisodeState]:
+        """List all active cooldown episodes from the database."""
+        cursor = self.conn.execute("SELECT * FROM episodes WHERE is_active = 1;")
+        episodes: List[EpisodeState] = []
+        for row in cursor.fetchall():
+            episodes.append(
+                EpisodeState(
+                    episode_id=row["episode_id"],
+                    route_key=row["route_key"],
+                    created_utc_ms=row["created_at_ms"],
+                    last_seen_utc_ms=row["last_seen_at_ms"],
+                    last_notified_utc_ms=row["last_notified_at_ms"],
+                    last_profit_quote=Decimal(row["last_profit"]),
+                    last_spread=Decimal(row["last_spread"]),
+                    last_midpoint=Decimal(row["last_midpoint"]),
+                    notification_count=row["notification_count"],
+                    is_active=bool(row["is_active"]),
+                )
+            )
+        return episodes
+
     # Opportunity Events
     def save_event(
         self,
@@ -174,7 +195,14 @@ class StorageRepository:
             "is_positive": event.opportunity.is_positive,
             "is_eligible": event.opportunity.is_eligible,
             "eligibility_reasons": list(event.opportunity.eligibility_reasons),
+            "input_hash": event.opportunity.input_hash,
+            "config_hash": event.opportunity.config_hash,
             "result_hash": event.opportunity.result_hash,
+            "kernel_version": event.opportunity.kernel_version,
+            "buy_fill": event.opportunity.buy_fill.to_dict() if hasattr(event.opportunity.buy_fill, "to_dict") else asdict(event.opportunity.buy_fill),
+            "sell_fill": event.opportunity.sell_fill.to_dict() if hasattr(event.opportunity.sell_fill, "to_dict") else asdict(event.opportunity.sell_fill),
+            "buy_fee_profile": capture_data.get("buy_fee") if (capture_data and isinstance(capture_data, dict)) else None,
+            "sell_fee_profile": capture_data.get("sell_fee") if (capture_data and isinstance(capture_data, dict)) else None,
             "capture_hash": capture_hash,
             "capture": capture_data,
         }
@@ -223,6 +251,7 @@ class StorageRepository:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(incident_id) DO UPDATE SET
                 closed_at_ms=excluded.closed_at_ms,
+                raw_evidence_json=excluded.raw_evidence_json,
                 is_recovered=excluded.is_recovered;
             """,
             (
@@ -243,6 +272,43 @@ class StorageRepository:
     def list_incidents(self, limit: int = 50) -> List[Dict[str, Any]]:
         cursor = self.conn.execute(
             "SELECT * FROM incidents ORDER BY opened_at_ms DESC LIMIT ?;",
+            (limit,),
+        )
+        return [dict(r) for r in cursor.fetchall()]
+
+    # Notifications
+    def save_notification(self, rec: Any) -> None:
+        self.conn.execute(
+            """
+            INSERT INTO notifications (notification_id, event_id, episode_id, route_key, mode, state, decision_utc_ms, enqueue_utc_ms, delivery_utc_ms, attempts, last_error, suppression_reason)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(notification_id) DO UPDATE SET
+                state=excluded.state,
+                delivery_utc_ms=excluded.delivery_utc_ms,
+                attempts=excluded.attempts,
+                last_error=excluded.last_error,
+                suppression_reason=excluded.suppression_reason;
+            """,
+            (
+                rec.notification_id,
+                rec.event_id,
+                rec.episode_id,
+                rec.route_key,
+                rec.mode,
+                rec.state,
+                rec.decision_utc_ms,
+                rec.enqueue_utc_ms,
+                rec.delivery_utc_ms,
+                rec.attempts,
+                rec.last_error,
+                rec.suppression_reason,
+            ),
+        )
+        self.conn.commit()
+
+    def list_notifications(self, limit: int = 50) -> List[Dict[str, Any]]:
+        cursor = self.conn.execute(
+            "SELECT * FROM notifications ORDER BY enqueue_utc_ms DESC LIMIT ?;",
             (limit,),
         )
         return [dict(r) for r in cursor.fetchall()]
