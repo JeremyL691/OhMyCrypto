@@ -4,10 +4,6 @@
 <dict>
 	<key>files</key>
 	<dict>
-		<key>Resources/dist/assets/index-Bosh5L8Y.js</key>
-		<data>
-		7j0AOTOPsxop/y5vm5vpGjfvSLk=
-		</data>
 		<key>Resources/dist/assets/index-C1zmOdz6.js</key>
 		<data>
 		2t8rb7buvqdaBq9HZOlD9kYos0E=
@@ -23,39 +19,14 @@
 	</dict>
 	<key>files2</key>
 	<dict>
-		<key>MacOS/sidecar/_internal/base_library.zip</key>
-		<dict>
-			<key>cdhash</key>
-			<data>
-			4yzEujEXGt7OYut906Jo/bXZUG8=
-			</data>
-			<key>requirement</key>
-			<string>cdhash H"e32cc4ba31171adece62eb7dd3a268fdb5d9506f"</string>
-		</dict>
-		<key>MacOS/sidecar/_internal/libpython3.12.dylib</key>
-		<dict>
-			<key>cdhash</key>
-			<data>
-			VcYAez3kvYll0VIKJUSaNAfn4Mg=
-			</data>
-			<key>requirement</key>
-			<string>cdhash H"55c6007b3de4bd8965d1520a25449a3407e7e0c8"</string>
-		</dict>
 		<key>MacOS/sidecar/ohmycrypto-sidecar</key>
 		<dict>
 			<key>cdhash</key>
 			<data>
-			Xtj19SHpuT2munQfJMlJMguf+Jw=
+			jzaWxyH3lnaf2HnFlJLNPzqOoHw=
 			</data>
 			<key>requirement</key>
-			<string>cdhash H"5ed8f5f521e9b93da6ba741f24c949320b9ff89c"</string>
-		</dict>
-		<key>Resources/dist/assets/index-Bosh5L8Y.js</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			Pot+O83nKNILoS6McAzy/2lWp483HL9ED0KrXMJARXI=
-			</data>
+			<string>cdhash H"8f3696c721f796769fd879c59492cd3f3a8ea07c"</string>
 		</dict>
 		<key>Resources/dist/assets/index-C1zmOdz6.js</key>
 		<dict>

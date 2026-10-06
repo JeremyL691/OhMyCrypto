@@ -8,7 +8,92 @@
 **Branch:** `codex/v1-refactor`  
 **Candidate Commit:** `a516ef8d179110d84121454a7d975abf24f974e2`  
 **Tree Hash:** `c311f4c3f3fec78178e1c3615e8b6d84e75503ef`  
-**Status:** `PUBLIC_RELEASE_READY` (Phase 2 advanced engineering complete)
+**Status:** `PUBLIC_RELEASE_READY` (Phase 2 advanced engineering complete; Gen 12 dual-arch release packaging complete)
+
+---
+
+## 0. Generation 12 — Dual-architecture release recovery (macOS 27 codesign rules)
+
+Generation 11 ended mid-way through x86_64 release preparation: an x86_64 DMG
+existed, but the onedir PyInstaller build had overwritten
+`release/candidate/OhMyCrypto.app` with an unsigned framework-layout bundle
+whose launcher also referenced the wrong sidecar name, and the native gate was
+left failing with `code object is not signed at all`. Gen 12 recovered and
+completed that work.
+
+### 0.1 Environment change discovered and verified
+
+macOS 27.0 (Build 26A428) codesign behavior changed relative to the Gen 11
+signing environment. All points were verified empirically on this host:
+
+1. `codesign --verify --strict` now classifies PyInstaller's
+   `base_library.zip` as unsigned nested code. Reproduced on a fresh
+   `git archive` extraction: the Gen 11 arm64 bundle signature no longer
+   verifies, so both architectures had to be rebuilt.
+2. Any directory named `python3.12` (even empty, even reached through a
+   symlink) is classified as a malformed nested bundle and cannot be signed,
+   skipped with `--no-strict`, or avoided by `--deep`.
+3. File Provider (iCloud Desktop sync) continuously re-adds
+   `com.apple.fileprovider.fpfs#P` xattrs under `release/candidate`; codesign
+   rejects such "detritus" both when signing and when verifying in place.
+
+### 0.2 Solution shipped in Gen 12
+
+- **Onefile sidecars, both architectures.** PyInstaller `--onefile` produces a
+  single signable Mach-O executable: no `_internal` tree, no Python.framework,
+  no `python3.12/` directory, no `base_library.zip`. arm64 uses the project
+  `.venv` (Python 3.12.15); x86_64 uses a new architecture-matched venv
+  `.venv-x86_64` (universal2 Python 3.12.0 from `/usr/local/bin/python3.12`),
+  both with PyInstaller 6.22.3.
+- **Staging-dir signing with hard verification.** `scripts/release.py` builds
+  each bundle in a File-Provider-free staging directory, signs every Mach-O
+  object and zip inside, signs the outer bundle without `--deep`, and **fails
+  the release** unless `codesign --verify --strict` passes. The DMG is created
+  from the pristine staging bundle, so no sync xattrs are baked into
+  distributed images.
+- **Launcher fix.** The bundle launcher now execs the actual architecture-
+  tagged sidecar name (`ohmycrypto-sidecar-x86_64` for Intel builds); the
+  interrupted x86_64 bundle had a broken launcher.
+- **`release.py aggregate`.** Per-arch prepare runs each wrote their own
+  manifest; the new `aggregate` subcommand registers one final manifest with
+  both architecture DMGs, the GPL corresponding-source archive and the
+  document files (6 artifacts), then `release.py verify` passes against it.
+- **Stronger native gate.** `scripts/verify.py --gate native` now pass/fails
+  on `codesign --verify --strict` (not just `-dv` display), executes the
+  bundled sidecar with a protocol ping, and verifies on a cleaned temp copy
+  mirroring a clean-user install.
+- **Bundled-sidecar test fixed for onefile.**
+  `tests/integration/test_bundled_sidecar.py` accepts both onefile and onedir
+  layouts; suite is back to 53 tests (min 53 gate holds).
+- **Repo hygiene.** Generated `desktop/node_modules` (9,521 files) and
+  `src/ohmycrypto.egg-info` are untracked; `.gitignore` covers `.venv-*/`,
+  `build/`, `node_modules/`.
+
+### 0.3 Gen 12 verification results
+
+| Check | Result |
+|---|---|
+| x86_64 sidecar Mach-O arch | x86_64, ping ok under Rosetta (pid 92723) |
+| arm64 sidecar Mach-O arch | arm64, ping ok natively |
+| Both bundles `codesign --verify --strict` in staging | PASS (release fails otherwise) |
+| Native gate (structure + strict codesign + bundled sidecar ping) | PASSED, 3/3 checks |
+| arm64 DMG mounted bundle strict verification | PASS |
+| x86_64 DMG mounted bundle strict verification | PASS |
+| Shipped x86_64 sidecar ping from mounted DMG | status=ok (pid 96370) |
+| Aggregate manifest | 6 artifacts, release verify clean |
+| Offline gate (pytest 53/53, typecheck, vitest 7/7, e2e 8/8, kernel) | PASSED |
+| Live gate (60 s, Coinbase + Kraken public data) | PASSED |
+
+Evidence: `.agent/evidence/t16_dualarch_release.json`. Candidate commit
+`52f8f0d05b23e49f3080978a94aa59a16fd2f990`; manifest binds to it.
+
+### 0.4 Remaining external prerequisites (unchanged)
+
+- Developer ID signing + notarization require Apple credentials (PR03) —
+  artifacts are ad-hoc signed locally.
+- Remote candidate-branch push / draft PR / publication require explicit
+  owner authorization (PR04); `release/candidate/` is verified and frozen
+  locally.
 
 ---
 
